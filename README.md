@@ -34,11 +34,11 @@ webhook with the following settings:
 - **Events**: `user.created`, `user.updated`, `user.deleted`
 
 ![Webhook
-configuration](https://raw.githubusercontent.com/erquhart/workos-authkit/refs/heads/main/assets/webhook-configuration.png)
+configuration](https://raw.githubusercontent.com/get-convex/workos-authkit/refs/heads/main/assets/webhook-configuration.png)
 
 Copy the webhook secret and add it to your environment variables as
 `WORKOS_WEBHOOK_SECRET`.
-![Webhook header](https://raw.githubusercontent.com/erquhart/workos-authkit/refs/heads/main/assets/webhook-header.png)
+![Webhook header](https://raw.githubusercontent.com/get-convex/workos-authkit/refs/heads/main/assets/webhook-header.png)
 
 ```sh
 npx convex env set WORKOS_WEBHOOK_SECRET=<your-webhook-secret>
@@ -251,7 +251,7 @@ docs](https://workos.com/docs/authkit/actions).
    environment variables as `WORKOS_ACTION_SECRET`.
 
 ![Action
-configuration](https://raw.githubusercontent.com/erquhart/workos-authkit/refs/heads/main/assets/action-configuration.png)
+configuration](https://raw.githubusercontent.com/get-convex/workos-authkit/refs/heads/main/assets/action-configuration.png)
 
 ## Usage
 
