@@ -8,8 +8,7 @@ import {
   httpActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
-import type { Mounts } from "../component/_generated/api.js";
-import type { RunQueryCtx, UseApi } from "./types.js";
+import type { RunQueryCtx } from "./types.js";
 import {
   WorkOS,
   type Event as WorkOSEvent,
@@ -19,6 +18,7 @@ import {
 } from "@workos-inc/node";
 import type { SetRequired } from "type-fest";
 import { v } from "convex/values";
+import type { ComponentApi } from "../component/_generated/component.js";
 
 type WorkOSResponsePayload =
   | AuthenticationActionResponseData
@@ -54,16 +54,11 @@ export type AuthFunctions = {
   >;
 };
 
-// UseApi<typeof api> is an alternative that has jump-to-definition but is
-// less stable and reliant on types within the component files, which can cause
-// issues where passing `components.foo` doesn't match the argument
-export type WorkOSAuthKitComponent = UseApi<Mounts>;
-
 export class AuthKit<DataModel extends GenericDataModel> {
   public workos: WorkOS;
   private config: Config;
   constructor(
-    public component: WorkOSAuthKitComponent,
+    public component: ComponentApi,
     public options: Options
   ) {
     const clientId = options?.clientId ?? process.env.WORKOS_CLIENT_ID;

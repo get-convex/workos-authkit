@@ -17,11 +17,11 @@
     "dev": "run-p -r 'dev:*'",
     "dev:backend": "convex dev --typecheck-components",
     "dev:frontend": "cd example && vite --clearScreen false",
-    "dev:build": "chokidar 'tsconfig*.json' 'src/**/*.ts' -i '**/*.test.ts' -c 'convex codegen --component-dir ./src/component && npm run build' --initial",
-    "predev": "path-exists .env.local || (npm run build && convex dev --once)",
+    "dev:build": "chokidar 'tsconfig*.json' 'src/**/*.ts' -i '**/*.test.ts' -c 'npx convex codegen --component-dir ./src/component && npm run build' --initial",
+    "predev": "path-exists .env.local || (npm run build && convex dev --until-success)",
     "clean": "rm -rf dist *.tsbuildinfo",
     "build": "tsc --project ./tsconfig.build.json",
-    "typecheck": "tsc --noEmit && tsc -p example/convex",
+    "typecheck": "tsc --noEmit && tsc -p example && tsc -p example/convex",
     "lint": "eslint .",
     "all": "run-p -r 'dev:*' 'test:watch'",
     "test": "vitest run --typecheck",
@@ -41,24 +41,28 @@
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "@convex-dev/component-source": "./src/client/index.ts",
       "types": "./dist/client/index.d.ts",
       "default": "./dist/client/index.js"
     },
     "./react": {
-      "@convex-dev/component-source": "./src/react/index.ts",
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
     },
     "./test": "./src/test.ts",
+    "./_generated/component.js": {
+      "types": "./dist/component/_generated/component.d.ts"
+    },
+    "./convex.config.js": {
+      "types": "./dist/component/convex.config.d.ts",
+      "default": "./dist/component/convex.config.js"
+    },
     "./convex.config": {
-      "@convex-dev/component-source": "./src/component/convex.config.ts",
       "types": "./dist/component/convex.config.d.ts",
       "default": "./dist/component/convex.config.js"
     }
   },
   "peerDependencies": {
-    "convex": "^1.28.0",
+    "convex": "^1.29.3",
     "react": "^18.3.1 || ^19.0.0"
   },
   "devDependencies": {

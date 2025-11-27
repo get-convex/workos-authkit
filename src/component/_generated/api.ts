@@ -15,70 +15,39 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import { anyApi, componentsGeneric } from "convex/server";
+
+const fullApi: ApiFromModules<{
+  lib: typeof lib;
+}> = anyApi as any;
 
 /**
- * A utility for referencing Convex functions in your app's API.
+ * A utility for referencing Convex functions in your app's public API.
  *
  * Usage:
  * ```js
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
-declare const fullApi: ApiFromModules<{
-  lib: typeof lib;
-}>;
-export type Mounts = {
-  lib: {
-    enqueueWebhookEvent: FunctionReference<
-      "mutation",
-      "public",
-      {
-        apiKey: string;
-        event: string;
-        eventId: string;
-        eventTypes?: Array<string>;
-        logLevel?: "DEBUG";
-        onEventHandle?: string;
-        updatedAt?: string;
-      },
-      any
-    >;
-    getAuthUser: FunctionReference<
-      "query",
-      "public",
-      { id: string },
-      {
-        createdAt: string;
-        email: string;
-        emailVerified: boolean;
-        externalId?: null | string;
-        firstName?: null | string;
-        id: string;
-        lastName?: null | string;
-        lastSignInAt?: null | string;
-        locale?: null | string;
-        metadata: Record<string, any>;
-        profilePictureUrl?: null | string;
-        updatedAt: string;
-      } | null
-    >;
-  };
-};
-// For now fullApiWithMounts is only fullApi which provides
-// jump-to-definition in component client code.
-// Use Mounts for the same type without the inference.
-declare const fullApiWithMounts: typeof fullApi;
-
-export declare const api: FilterApi<
-  typeof fullApiWithMounts,
+export const api: FilterApi<
+  typeof fullApi,
   FunctionReference<any, "public">
->;
-export declare const internal: FilterApi<
-  typeof fullApiWithMounts,
-  FunctionReference<any, "internal">
->;
+> = anyApi as any;
 
-export declare const components: {
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+> = anyApi as any;
+
+export const components = componentsGeneric() as unknown as {
   eventWorkpool: {
     lib: {
       cancel: FunctionReference<
