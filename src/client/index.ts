@@ -34,13 +34,10 @@ type Options = {
   actionSecret?: string;
   logLevel?: "DEBUG";
 };
-type Config = SetRequired<
-  Options,
-  "clientId" | "apiKey" | "webhookSecret" | "actionSecret"
->;
+type Config = SetRequired<Options, "clientId" | "apiKey" | "webhookSecret">;
 
 export type AuthFunctions = {
-  authKitAction: FunctionReference<
+  authKitAction?: FunctionReference<
     "mutation",
     "internal",
     { action: unknown },
@@ -54,6 +51,16 @@ export type AuthFunctions = {
   >;
 };
 
+const requireEnvVar = (
+  str: string | undefined,
+  onUndefined: () => void
+): string => {
+  if (!str) {
+    onUndefined();
+  }
+  return str!;
+};
+
 export class AuthKit<DataModel extends GenericDataModel> {
   public workos: WorkOS;
   private config: Config;
@@ -61,26 +68,20 @@ export class AuthKit<DataModel extends GenericDataModel> {
     public component: ComponentApi,
     public options?: Options
   ) {
-    const clientId = options?.clientId ?? process.env.WORKOS_CLIENT_ID;
-    const apiKey = options?.apiKey ?? process.env.WORKOS_API_KEY;
-    const webhookSecret =
-      options?.webhookSecret ?? process.env.WORKOS_WEBHOOK_SECRET;
-    const actionSecret =
-      options?.actionSecret ?? process.env.WORKOS_ACTION_SECRET;
     const missingEnvVars: string[] = [];
-    if (!clientId) {
-      missingEnvVars.push("WORKOS_CLIENT_ID");
-    }
-    if (!apiKey) {
-      missingEnvVars.push("WORKOS_API_KEY");
-    }
-    if (!webhookSecret) {
-      missingEnvVars.push("WORKOS_WEBHOOK_SECRET");
-    }
-    if (!actionSecret) {
-      missingEnvVars.push("WORKOS_ACTION_SECRET");
-    }
-    if (!clientId || !apiKey || !webhookSecret || !actionSecret) {
+    const clientId = requireEnvVar(
+      options?.clientId ?? process.env.WORKOS_CLIENT_ID,
+      () => missingEnvVars.push("WORKOS_CLIENT_ID")
+    );
+    const apiKey = requireEnvVar(
+      options?.apiKey ?? process.env.WORKOS_API_KEY,
+      () => missingEnvVars.push("WORKOS_API_KEY")
+    );
+    const webhookSecret = requireEnvVar(
+      options?.webhookSecret ?? process.env.WORKOS_WEBHOOK_SECRET,
+      () => missingEnvVars.push("WORKOS_WEBHOOK_SECRET")
+    );
+    if (missingEnvVars.length > 0) {
       throw new Error(
         `Missing environment variables: ${missingEnvVars.join(", ")}`
       );
@@ -90,7 +91,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
       clientId,
       apiKey,
       webhookSecret,
-      actionSecret,
+      actionSecret: options?.actionSecret ?? process.env.WORKOS_ACTION_SECRET,
       webhookPath: options?.webhookPath ?? "/workos/webhook",
     };
     this.workos = new WorkOS(this.config.apiKey);
@@ -267,14 +268,16 @@ export class AuthKit<DataModel extends GenericDataModel> {
           );
         }
         const responsePayload: WorkOSResponsePayload = await ctx.runMutation(
-          this.config.authFunctions.authKitAction,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+          this.config.authFunctions?.authKitAction!,
           {
             action,
           }
         );
         const response = await this.workos.actions.signResponse(
           responsePayload,
-          this.config.actionSecret
+          // We check for this in the constructor
+          this.config.actionSecret!
         );
         return new Response(JSON.stringify(response), { status: 200 });
       }),
