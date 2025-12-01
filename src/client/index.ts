@@ -25,7 +25,7 @@ type WorkOSResponsePayload =
   | UserRegistrationActionResponseData;
 
 type Options = {
-  authFunctions: AuthFunctions;
+  authFunctions?: AuthFunctions;
   clientId?: string;
   apiKey?: string;
   webhookSecret?: string;
@@ -59,7 +59,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
   private config: Config;
   constructor(
     public component: ComponentApi,
-    public options: Options
+    public options?: Options
   ) {
     const clientId = options?.clientId ?? process.env.WORKOS_CLIENT_ID;
     const apiKey = options?.apiKey ?? process.env.WORKOS_API_KEY;
@@ -86,7 +86,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
       );
     }
     this.config = {
-      ...options,
+      ...(options ?? {}),
       clientId,
       apiKey,
       webhookSecret,
@@ -260,6 +260,11 @@ export class AuthKit<DataModel extends GenericDataModel> {
         });
         if (this.config.logLevel === "DEBUG") {
           console.log("received action", action);
+        }
+        if (!this.config.authFunctions?.authKitAction) {
+          throw new Error(
+            "authFunctions not set in AuthKit component configuration, or no authKitAction function exported"
+          );
         }
         const responsePayload: WorkOSResponsePayload = await ctx.runMutation(
           this.config.authFunctions.authKitAction,
