@@ -1,4 +1,11 @@
 import {
+  type AuthenticationActionResponseData,
+  type UserRegistrationActionResponseData,
+  WorkOS,
+  type ActionContext as WorkOSActionContext,
+  type Event as WorkOSEvent,
+} from "@workos-inc/node";
+import {
   type AuthConfig,
   type FunctionReference,
   type GenericDataModel,
@@ -8,17 +15,10 @@ import {
   httpActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
-import type { RunQueryCtx } from "./types.js";
-import {
-  WorkOS,
-  type Event as WorkOSEvent,
-  type ActionContext as WorkOSActionContext,
-  type UserRegistrationActionResponseData,
-  type AuthenticationActionResponseData,
-} from "@workos-inc/node";
-import type { SetRequired } from "type-fest";
 import { v } from "convex/values";
+import type { SetRequired } from "type-fest";
 import type { ComponentApi } from "../component/_generated/component.js";
+import type { RunQueryCtx } from "./types.js";
 
 type WorkOSResponsePayload =
   | AuthenticationActionResponseData
@@ -33,6 +33,17 @@ type Options = {
   additionalEventTypes?: WorkOSEvent["event"][];
   actionSecret?: string;
   logLevel?: "DEBUG";
+  /**
+   * Initial range (in hours) to fetch events when no cursor exists.
+   * Defaults to 168 hours (7 days).
+   */
+  initialRangeHours?: number;
+  /**
+   * When enabled, creates a user in the database if a `user.updated` event
+   * is received but the user doesn't exist. This handles cases where a
+   * `user.created` event was missed.
+   */
+  createUserOnUpdate?: boolean;
 };
 type Config = SetRequired<Options, "clientId" | "apiKey" | "webhookSecret">;
 
@@ -237,6 +248,8 @@ export class AuthKit<DataModel extends GenericDataModel> {
             "updated_at" in event ? (event.updated_at as string) : undefined,
           eventTypes: this.config.additionalEventTypes,
           logLevel: this.config.logLevel,
+          initialRangeHours: this.config.initialRangeHours,
+          createUserOnUpdate: this.config.createUserOnUpdate,
         });
         return new Response("OK", { status: 200 });
       }),

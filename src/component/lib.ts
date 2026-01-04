@@ -1,4 +1,9 @@
+import { Workpool } from "@convex-dev/workpool";
+import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
+import { omit, withoutSystemFields } from "convex-helpers";
+import type { FunctionHandle } from "convex/server";
 import { v } from "convex/values";
+import { components, internal } from "./_generated/api.js";
 import {
   internalAction,
   internalMutation,
@@ -6,11 +11,6 @@ import {
   mutation,
   query,
 } from "./_generated/server.js";
-import { components, internal } from "./_generated/api.js";
-import { omit, withoutSystemFields } from "convex-helpers";
-import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
-import type { FunctionHandle } from "convex/server";
-import { Workpool } from "@convex-dev/workpool";
 import schema from "./schema.js";
 
 const eventWorkpool = new Workpool(components.eventWorkpool, {
@@ -26,6 +26,8 @@ export const enqueueWebhookEvent = mutation({
     onEventHandle: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
+    initialRangeHours: v.optional(v.number()),
+    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await eventWorkpool.cancelAll(ctx);
@@ -34,6 +36,8 @@ export const enqueueWebhookEvent = mutation({
       onEventHandle: args.onEventHandle,
       eventTypes: args.eventTypes,
       logLevel: args.logLevel,
+      initialRangeHours: args.initialRangeHours,
+      createUserOnUpdate: args.createUserOnUpdate,
     });
   },
 });
@@ -56,6 +60,8 @@ export const updateEvents = internalAction({
     onEventHandle: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
+    initialRangeHours: v.optional(v.number()),
+    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const workos = new WorkOS(args.apiKey);
@@ -68,10 +74,11 @@ export const updateEvents = internalAction({
       ...((args.eventTypes as WorkOSEvent["event"][]) ?? []),
     ];
     // No cursor should mean we haven't handled any events - set
-    // a start time of 5 minutes ago
+    // a start time based on initialRangeHours (default: 7 days)
+    const rangeHours = args.initialRangeHours ?? 168;
     let rangeStart = nextCursor
       ? undefined
-      : new Date(Date.now() - 1000 * 60 * 5).toISOString();
+      : new Date(Date.now() - 1000 * 60 * 60 * rangeHours).toISOString();
     do {
       const { data, listMetadata } = await workos.events.listEvents({
         events: eventTypes,
@@ -83,6 +90,7 @@ export const updateEvents = internalAction({
           event,
           logLevel: args.logLevel,
           onEventHandle: args.onEventHandle,
+          createUserOnUpdate: args.createUserOnUpdate,
         });
       }
       nextCursor = listMetadata.after;
@@ -101,6 +109,7 @@ export const processEvent = internalMutation({
     }),
     logLevel: v.optional(v.literal("DEBUG")),
     onEventHandle: v.optional(v.string()),
+    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     if (args.logLevel === "DEBUG") {
@@ -141,7 +150,13 @@ export const processEvent = internalMutation({
           .withIndex("id", (q) => q.eq("id", data.id))
           .unique();
         if (!user) {
-          console.error("user not found", data.id);
+          if (args.createUserOnUpdate) {
+            // User not found - create them (handles missed user.created events)
+            console.warn("user not found for update, creating:", data.id);
+            await ctx.db.insert("users", data);
+          } else {
+            console.error("user not found", data.id);
+          }
           break;
         }
         if (user.updatedAt >= data.updatedAt) {
