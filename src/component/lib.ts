@@ -72,7 +72,6 @@ export const updateEvents = internalAction({
     let rangeStart = nextCursor
       ? undefined
       : new Date(Date.now() - 1000 * 60 * 5).toISOString();
-
     do {
       const { data, listMetadata } = await workos.events.listEvents({
         events: eventTypes,
