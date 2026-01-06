@@ -67,10 +67,17 @@ export const updateEvents = internalAction({
       "user.deleted" as const,
       ...((args.eventTypes as WorkOSEvent["event"][]) ?? []),
     ];
+    // No cursor should mean we haven't handled any events - set
+    // a start time of 5 minutes ago
+    let rangeStart = nextCursor
+      ? undefined
+      : new Date(Date.now() - 1000 * 60 * 5).toISOString();
+
     do {
       const { data, listMetadata } = await workos.events.listEvents({
         events: eventTypes,
         after: nextCursor,
+        rangeStart,
       });
       for (const event of data) {
         await ctx.runMutation(internal.lib.processEvent, {
@@ -80,6 +87,7 @@ export const updateEvents = internalAction({
         });
       }
       nextCursor = listMetadata.after;
+      rangeStart = undefined;
     } while (nextCursor);
   },
 });
