@@ -26,8 +26,6 @@ export const enqueueWebhookEvent = mutation({
     onEventHandle: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
-    initialRangeHours: v.optional(v.number()),
-    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await eventWorkpool.cancelAll(ctx);
@@ -36,8 +34,6 @@ export const enqueueWebhookEvent = mutation({
       onEventHandle: args.onEventHandle,
       eventTypes: args.eventTypes,
       logLevel: args.logLevel,
-      initialRangeHours: args.initialRangeHours,
-      createUserOnUpdate: args.createUserOnUpdate,
     });
   },
 });
@@ -60,8 +56,6 @@ export const updateEvents = internalAction({
     onEventHandle: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
-    initialRangeHours: v.optional(v.number()),
-    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const workos = new WorkOS(args.apiKey);
@@ -73,28 +67,19 @@ export const updateEvents = internalAction({
       "user.deleted" as const,
       ...((args.eventTypes as WorkOSEvent["event"][]) ?? []),
     ];
-    // No cursor should mean we haven't handled any events - set
-    // a start time based on initialRangeHours (default: 7 days)
-    const rangeHours = args.initialRangeHours ?? 168;
-    let rangeStart = nextCursor
-      ? undefined
-      : new Date(Date.now() - 1000 * 60 * 60 * rangeHours).toISOString();
     do {
       const { data, listMetadata } = await workos.events.listEvents({
         events: eventTypes,
         after: nextCursor,
-        rangeStart,
       });
       for (const event of data) {
         await ctx.runMutation(internal.lib.processEvent, {
           event,
           logLevel: args.logLevel,
           onEventHandle: args.onEventHandle,
-          createUserOnUpdate: args.createUserOnUpdate,
         });
       }
       nextCursor = listMetadata.after;
-      rangeStart = undefined;
     } while (nextCursor);
   },
 });
@@ -109,7 +94,6 @@ export const processEvent = internalMutation({
     }),
     logLevel: v.optional(v.literal("DEBUG")),
     onEventHandle: v.optional(v.string()),
-    createUserOnUpdate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     if (args.logLevel === "DEBUG") {
@@ -150,13 +134,7 @@ export const processEvent = internalMutation({
           .withIndex("id", (q) => q.eq("id", data.id))
           .unique();
         if (!user) {
-          if (args.createUserOnUpdate) {
-            // User not found - create them (handles missed user.created events)
-            console.warn("user not found for update, creating:", data.id);
-            await ctx.db.insert("users", data);
-          } else {
-            console.error("user not found", data.id);
-          }
+          console.error("user not found", data.id);
           break;
         }
         if (user.updatedAt >= data.updatedAt) {
@@ -200,5 +178,214 @@ export const getAuthUser = query({
       .withIndex("id", (q) => q.eq("id", args.id))
       .unique();
     return user ? withoutSystemFields(user) : null;
+  },
+});
+
+// Get the last verified eventId with _creationTime (for efficient range queries)
+export const getLastCheckpointedEvent = internalQuery({
+  args: {},
+  returns: v.union(
+    v.object({
+      eventId: v.string(),
+      _creationTime: v.number(),
+    }),
+    v.null()
+  ),
+  handler: async (ctx) => {
+    const state = await ctx.db
+      .query("syncState")
+      .withIndex("key", (q) => q.eq("key", "lastCheckpointedEventId"))
+      .unique();
+
+    if (!state) {
+      return null;
+    }
+
+    const event = await ctx.db
+      .query("events")
+      .withIndex("eventId", (q) => q.eq("eventId", state.value))
+      .unique();
+
+    if (!event) {
+      return null;
+    }
+
+    return {
+      eventId: event.eventId,
+      _creationTime: event._creationTime,
+    };
+  },
+});
+
+// Given a list of event IDs, return which ones are missing from the events table
+// Uses `after` to limit query range (by induction, events before `after` exist)
+export const getMissingEventIds = internalQuery({
+  args: {
+    eventIds: v.array(v.string()),
+    after: v.optional(v.number()),
+  },
+  returns: v.array(v.string()),
+  handler: async (ctx, { eventIds, after }) => {
+    const existingEventIds = new Set<string>();
+
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_creation_time", (q) => q.gt("_creationTime", after ?? 0))
+      .order("asc");
+
+    // Collect all existing event IDs that were created after `after`
+    for await (const event of events) {
+      existingEventIds.add(event.eventId);
+    }
+
+    // Return IDs from input that are NOT in the existing set
+    return eventIds.filter((id) => !existingEventIds.has(id));
+  },
+});
+
+// Update last verified event ID after successful backfill
+export const updateLastCheckpointedEventId = internalMutation({
+  args: {
+    eventId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("syncState")
+      .withIndex("key", (q) => q.eq("key", "lastCheckpointedEventId"))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: args.eventId });
+    } else {
+      await ctx.db.insert("syncState", {
+        key: "lastCheckpointedEventId",
+        value: args.eventId,
+      });
+    }
+
+    return null;
+  },
+});
+
+// Manual backfill: fetch all events after lastVerifiedEventId and process missing ones
+export const backfillEvents = internalAction({
+  args: {
+    apiKey: v.string(),
+    onEventHandle: v.optional(v.string()),
+    eventTypes: v.optional(v.array(v.string())),
+    logLevel: v.optional(v.literal("DEBUG")),
+  },
+  returns: v.object({
+    processed: v.number(),
+    skipped: v.number(),
+    lastEventId: v.union(v.string(), v.null()),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    processed: number;
+    skipped: number;
+    lastEventId: string | null;
+  }> => {
+    const workos = new WorkOS(args.apiKey);
+
+    // Get last checkpointed event (contains eventId and _creationTime)
+    const lastCheckpointedEvent = await ctx.runQuery(
+      internal.lib.getLastCheckpointedEvent
+    );
+    const lastVerifiedEventId = lastCheckpointedEvent?.eventId ?? null;
+    const lastVerifiedCreationTime = lastCheckpointedEvent?._creationTime ?? 0;
+
+    const eventTypes = [
+      "user.created" as const,
+      "user.updated" as const,
+      "user.deleted" as const,
+      ...((args.eventTypes as WorkOSEvent["event"][]) ?? []),
+    ];
+
+    if (args.logLevel === "DEBUG") {
+      console.log(
+        `Starting backfill, lastVerifiedEventId: ${lastVerifiedEventId ?? "none (full scan)"}`
+      );
+      console.log("Event types:", eventTypes);
+    }
+
+    let nextCursor = lastVerifiedEventId ?? undefined;
+    let lastEventId: string | null = null;
+    let processed = 0;
+    let skipped = 0;
+
+    // Fetch events (always run at least once to check for new events)
+    while (true) {
+      const { data, listMetadata } = await workos.events.listEvents({
+        events: eventTypes,
+        after: nextCursor,
+      });
+
+      // No more events to process
+      if (data.length === 0) {
+        break;
+      }
+
+      // Batch check which events are missing (single query instead of one per event)
+      // By induction, all events before lastVerifiedCreationTime are already processed
+      const eventIds = data.map((e) => e.id);
+      const missingEventIdsArray: string[] = await ctx.runQuery(
+        internal.lib.getMissingEventIds,
+        {
+          eventIds,
+          after: lastVerifiedCreationTime,
+        }
+      );
+      const missingEventIds = new Set(missingEventIdsArray);
+
+      if (args.logLevel === "DEBUG") {
+        console.log(
+          `Batch: ${data.length} events, ${missingEventIds.size} missing`
+        );
+      }
+
+      // Process each event sequentially (only missing ones)
+      for (const event of data) {
+        if (!missingEventIds.has(event.id)) {
+          skipped++;
+          lastEventId = event.id;
+          continue;
+        }
+
+        // Only process missing events
+        await ctx.runMutation(internal.lib.processEvent, {
+          event,
+          logLevel: args.logLevel,
+          onEventHandle: args.onEventHandle,
+        });
+
+        lastEventId = event.id;
+        processed++;
+      }
+
+      // No more pages
+      if (!listMetadata.after) {
+        break;
+      }
+      nextCursor = listMetadata.after;
+    }
+
+    // Update checkpoint after all events are processed
+    if (lastEventId) {
+      await ctx.runMutation(internal.lib.updateLastCheckpointedEventId, {
+        eventId: lastEventId,
+      });
+    }
+
+    if (args.logLevel === "DEBUG") {
+      console.log(
+        `Backfill complete. Processed: ${processed}, Skipped: ${skipped}, Last event: ${lastEventId}`
+      );
+    }
+
+    return { processed, skipped, lastEventId };
   },
 });

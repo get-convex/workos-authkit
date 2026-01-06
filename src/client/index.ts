@@ -33,17 +33,6 @@ type Options = {
   additionalEventTypes?: WorkOSEvent["event"][];
   actionSecret?: string;
   logLevel?: "DEBUG";
-  /**
-   * Initial range (in hours) to fetch events when no cursor exists.
-   * Defaults to 168 hours (7 days).
-   */
-  initialRangeHours?: number;
-  /**
-   * When enabled, creates a user in the database if a `user.updated` event
-   * is received but the user doesn't exist. This handles cases where a
-   * `user.created` event was missed.
-   */
-  createUserOnUpdate?: boolean;
 };
 type Config = SetRequired<Options, "clientId" | "apiKey" | "webhookSecret">;
 
@@ -248,8 +237,6 @@ export class AuthKit<DataModel extends GenericDataModel> {
             "updated_at" in event ? (event.updated_at as string) : undefined,
           eventTypes: this.config.additionalEventTypes,
           logLevel: this.config.logLevel,
-          initialRangeHours: this.config.initialRangeHours,
-          createUserOnUpdate: this.config.createUserOnUpdate,
         });
         return new Response("OK", { status: 200 });
       }),
