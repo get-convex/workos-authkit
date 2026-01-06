@@ -302,8 +302,9 @@ export const backfillEvents = internalAction({
     const lastCheckpointedEvent = await ctx.runQuery(
       internal.lib.getLastCheckpointedEvent
     );
-    const lastVerifiedEventId = lastCheckpointedEvent?.eventId ?? null;
-    const lastVerifiedCreationTime = lastCheckpointedEvent?._creationTime ?? 0;
+    const lastCheckpointedEventId = lastCheckpointedEvent?.eventId ?? null;
+    const lastCheckpointedCreationTime =
+      lastCheckpointedEvent?._creationTime ?? 0;
 
     const eventTypes = [
       "user.created" as const,
@@ -314,15 +315,15 @@ export const backfillEvents = internalAction({
 
     if (args.logLevel === "DEBUG") {
       console.log(
-        `Starting backfill, lastVerifiedEventId: ${lastVerifiedEventId ?? "none (full scan)"}`
+        `Starting backfill, lastCheckpointedEventId: ${lastCheckpointedEventId ?? "none (full scan)"}`
       );
       console.log("Event types:", eventTypes);
     }
 
-    let nextCursor = lastVerifiedEventId ?? undefined;
-    let lastEventId: string | null = null;
+    let nextCursor = lastCheckpointedEventId ?? undefined;
     let processed = 0;
     let skipped = 0;
+    let lastEventId: string | null = null;
 
     // Fetch events (always run at least once to check for new events)
     while (true) {
@@ -336,14 +337,16 @@ export const backfillEvents = internalAction({
         break;
       }
 
+      lastEventId = data[data.length - 1].id;
+
       // Batch check which events are missing (single query instead of one per event)
-      // By induction, all events before lastVerifiedCreationTime are already processed
+      // By induction, all events before lastCheckpointedCreationTime are already processed
       const eventIds = data.map((e) => e.id);
       const missingEventIdsArray: string[] = await ctx.runQuery(
         internal.lib.getMissingEventIds,
         {
           eventIds,
-          after: lastVerifiedCreationTime,
+          after: lastCheckpointedCreationTime,
         }
       );
       const missingEventIds = new Set(missingEventIdsArray);
@@ -358,7 +361,6 @@ export const backfillEvents = internalAction({
       for (const event of data) {
         if (!missingEventIds.has(event.id)) {
           skipped++;
-          lastEventId = event.id;
           continue;
         }
 
@@ -369,22 +371,19 @@ export const backfillEvents = internalAction({
           onEventHandle: args.onEventHandle,
         });
 
-        lastEventId = event.id;
         processed++;
       }
+
+      // Update checkpoint to the last event in the batch
+      await ctx.runMutation(internal.lib.updateLastCheckpointedEventId, {
+        eventId: lastEventId,
+      });
 
       // No more pages
       if (!listMetadata.after) {
         break;
       }
       nextCursor = listMetadata.after;
-    }
-
-    // Update checkpoint after all events are processed
-    if (lastEventId) {
-      await ctx.runMutation(internal.lib.updateLastCheckpointedEventId, {
-        eventId: lastEventId,
-      });
     }
 
     if (args.logLevel === "DEBUG") {
