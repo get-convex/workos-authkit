@@ -98,6 +98,7 @@ export const processEvent = internalMutation({
       createdAt: v.string(),
       event: v.string(),
       data: v.record(v.string(), v.any()),
+      context: v.optional(v.record(v.string(), v.any())),
     }),
     logLevel: v.optional(v.literal("DEBUG")),
     onEventHandle: v.optional(v.string()),
