@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- fix: allow context property on webhook payloads
+
 ## 0.1.4
 
 - fix: upgrade @workos-inc/node for crypto error fix
