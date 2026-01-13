@@ -144,7 +144,10 @@ export class AuthKit<DataModel extends GenericDataModel> {
         },
         returns: v.null(),
         handler: async (ctx, args) => {
-          await opts[args.event as K](ctx, args as never);
+          const handler = opts[args.event as K];
+          if (handler) {
+            await handler(ctx, args as never);
+          }
         },
       }),
     };
