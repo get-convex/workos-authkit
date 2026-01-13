@@ -13,3 +13,11 @@ node_modules
 # npm pack output
 *.tgz
 *.tsbuildinfo
+
+# AI
+.claude/settings.local.json
+
+# Local env files
+.env*
+.env.local*
+.dev.vars*

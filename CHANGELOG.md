@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6
+- fix: error when handler for events tried getting a handler that didn't exist, now it checks to see if there is a handler for the event before returning it
+- fix: circular dependency with internal.auth where you needed to build before using it
+- chore: update dependencies
+
+## 0.1.5
+- fix: add context field to webhook request
+
 ## 0.1.4
 
 - fix: upgrade @workos-inc/node for crypto error fix
