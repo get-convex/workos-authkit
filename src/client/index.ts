@@ -1,4 +1,11 @@
 import {
+  type AuthenticationActionResponseData,
+  type UserRegistrationActionResponseData,
+  WorkOS,
+  type ActionContext as WorkOSActionContext,
+  type Event as WorkOSEvent,
+} from "@workos-inc/node";
+import {
   type AuthConfig,
   type FunctionReference,
   type GenericDataModel,
@@ -8,17 +15,10 @@ import {
   httpActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
-import type { RunQueryCtx } from "./types.js";
-import {
-  WorkOS,
-  type Event as WorkOSEvent,
-  type ActionContext as WorkOSActionContext,
-  type UserRegistrationActionResponseData,
-  type AuthenticationActionResponseData,
-} from "@workos-inc/node";
-import type { SetRequired } from "type-fest";
 import { v } from "convex/values";
+import type { SetRequired } from "type-fest";
 import type { ComponentApi } from "../component/_generated/component.js";
+import type { RunQueryCtx } from "./types.js";
 
 type WorkOSResponsePayload =
   | AuthenticationActionResponseData
