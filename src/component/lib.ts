@@ -12,9 +12,18 @@ import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
 import type { FunctionHandle } from "convex/server";
 import { Workpool } from "@convex-dev/workpool";
 import schema from "./schema.js";
+import { parse } from "convex-helpers/validators";
 
 const eventWorkpool = new Workpool(components.eventWorkpool, {
   maxParallelism: 1,
+});
+
+const vEvent = v.object({
+  id: v.string(),
+  createdAt: v.string(),
+  event: v.string(),
+  data: v.record(v.string(), v.any()),
+  context: v.optional(v.record(v.string(), v.any())),
 });
 
 export const enqueueWebhookEvent = mutation({
@@ -80,7 +89,7 @@ export const updateEvents = internalAction({
       });
       for (const event of data) {
         await ctx.runMutation(internal.lib.processEvent, {
-          event,
+          event: parse(vEvent, event),
           logLevel: args.logLevel,
           onEventHandle: args.onEventHandle,
         });
@@ -93,13 +102,7 @@ export const updateEvents = internalAction({
 
 export const processEvent = internalMutation({
   args: {
-    event: v.object({
-      id: v.string(),
-      createdAt: v.string(),
-      event: v.string(),
-      data: v.record(v.string(), v.any()),
-      context: v.optional(v.record(v.string(), v.any())),
-    }),
+    event: vEvent,
     logLevel: v.optional(v.literal("DEBUG")),
     onEventHandle: v.optional(v.string()),
   },
