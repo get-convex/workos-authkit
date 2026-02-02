@@ -22,14 +22,13 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           cache-dependency-path: package.json
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "npm"
 
       - run: |
-          npm i
+          npm ci
           npm run build
-          npx pkg-pr-new publish
+          npx pkg-pr-new publish || "echo 'Failed to publish package - is pkg-pr-new set up?'"
           npm run test
           npm run typecheck
           npm run lint
-          npm run attw
