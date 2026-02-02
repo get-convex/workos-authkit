@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Parse webhook payloads to avoid breakages on new properties
+
 ## 0.1.5
 
 - fix: allow context property on webhook payloads
