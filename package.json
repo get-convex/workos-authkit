@@ -75,6 +75,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "@workos-inc/node": "^8.0.0",
     "chokidar-cli": "3.0.0",
     "convex": "1.29.3",
     "convex-test": "0.0.40",
@@ -101,7 +102,7 @@
     "@convex-dev/workos": "^0.0.1",
     "@convex-dev/workpool": "^0.2.19",
     "@workos-inc/authkit-react": "^0.13.0",
-    "@workos-inc/node": "^7.75.1",
+    "@workos-inc/node": "^7.75.1 || ^8.0.0",
     "convex-helpers": "^0.1.104",
     "type-fest": "^5.1.0"
   }

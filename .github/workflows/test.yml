@@ -26,7 +26,7 @@ jobs:
           cache: "npm"
 
       - run: |
-          npm i
+          npm ci
           npm run build
           npx pkg-pr-new publish
           npm run test
