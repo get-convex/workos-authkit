@@ -6,7 +6,7 @@
   "bugs": {
     "url": "https://github.com/get-convex/workos-authkit/issues"
   },
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "Apache-2.0",
   "keywords": [
     "convex",
@@ -30,8 +30,8 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "prepublishOnly": "(npm whoami || npm login) && npm run clean && npm run build",
     "preversion": "npm run clean && npm ci && npm run build && run-p test lint typecheck",
-    "alpha": "npm version prerelease --preid alpha && npm publish --tag alpha && git push --tags",
-    "release": "npm version patch && npm publish && git push --tags && git push",
+    "alpha": "npm version prerelease --preid alpha && npm publish --tag alpha && git push --follow-tags",
+    "release": "npm version patch && npm publish && git push --follow-tags",
     "version": "vim -c 'normal o' -c 'normal o## '$npm_package_version CHANGELOG.md && prettier -w CHANGELOG.md && git add CHANGELOG.md"
   },
   "files": [
