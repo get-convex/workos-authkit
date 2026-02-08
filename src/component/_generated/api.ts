@@ -49,13 +49,24 @@ export const internal: FilterApi<
 
 export const components = componentsGeneric() as unknown as {
   eventWorkpool: {
+    config: {
+      update: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          maxParallelism?: number;
+        },
+        any
+      >;
+    };
     lib: {
       cancel: FunctionReference<
         "mutation",
         "internal",
         {
           id: string;
-          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
         },
         any
       >;
@@ -65,7 +76,7 @@ export const components = componentsGeneric() as unknown as {
         {
           before?: number;
           limit?: number;
-          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+          logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
         },
         any
       >;
@@ -74,8 +85,8 @@ export const components = componentsGeneric() as unknown as {
         "internal",
         {
           config: {
-            logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
-            maxParallelism: number;
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
           };
           fnArgs: any;
           fnHandle: string;
@@ -96,8 +107,8 @@ export const components = componentsGeneric() as unknown as {
         "internal",
         {
           config: {
-            logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
-            maxParallelism: number;
+            logLevel?: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism?: number;
           };
           items: Array<{
             fnArgs: any;
