@@ -102,7 +102,7 @@
     "@convex-dev/workos": "^0.0.1",
     "@convex-dev/workpool": "^0.2.19",
     "@workos-inc/authkit-react": "^0.13.0",
-    "@workos-inc/node": "^7.75.1",
+    "@workos-inc/node": "^8.0.0",
     "convex-helpers": "^0.1.104",
     "type-fest": "^5.1.0"
   }
