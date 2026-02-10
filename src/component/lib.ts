@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import {
   internalAction,
   internalMutation,
@@ -6,6 +6,7 @@ import {
   mutation,
   query,
 } from "./_generated/server.js";
+import type { MutationCtx } from "./_generated/server.js";
 import { components, internal } from "./_generated/api.js";
 import { omit, withoutSystemFields } from "convex-helpers";
 import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
@@ -18,7 +19,7 @@ const eventWorkpool = new Workpool(components.eventWorkpool, {
   maxParallelism: 1,
 });
 
-const vEvent = v.object({
+export const vEvent = v.object({
   id: v.string(),
   createdAt: v.string(),
   event: v.string(),
@@ -26,24 +27,110 @@ const vEvent = v.object({
   context: v.optional(v.record(v.string(), v.any())),
 });
 
-export const enqueueWebhookEvent = mutation({
+async function processEventHandler(
+  ctx: MutationCtx,
+  args: {
+    event: Infer<typeof vEvent>;
+    logLevel?: "DEBUG";
+    onEventHandle?: string;
+  }
+) {
+  if (args.logLevel === "DEBUG") {
+    console.log("processing event", args.event);
+  }
+  const dbEvent = await ctx.db
+    .query("events")
+    .withIndex("eventId", (q) => q.eq("eventId", args.event.id))
+    .unique();
+  if (dbEvent) {
+    console.log("event already processed", args.event.id);
+    return;
+  }
+  await ctx.db.insert("events", {
+    eventId: args.event.id,
+    event: args.event.event,
+    updatedAt: args.event.data.updatedAt as string | undefined,
+  });
+  const event = args.event as WorkOSEvent;
+  switch (event.event) {
+    case "user.created": {
+      const data = omit(event.data, ["object"]);
+      const existingUser = await ctx.db
+        .query("users")
+        .withIndex("id", (q) => q.eq("id", data.id))
+        .unique();
+      if (existingUser) {
+        console.warn("user already exists", data.id);
+        break;
+      }
+      await ctx.db.insert("users", data);
+      break;
+    }
+    case "user.updated": {
+      const data = omit(event.data, ["object"]);
+      const user = await ctx.db
+        .query("users")
+        .withIndex("id", (q) => q.eq("id", data.id))
+        .unique();
+      if (!user) {
+        console.error("user not found", data.id);
+        break;
+      }
+      if (user.updatedAt >= data.updatedAt) {
+        console.warn(`user already updated for event ${event.id}, skipping`);
+        break;
+      }
+      await ctx.db.patch(user._id, data);
+      break;
+    }
+    case "user.deleted": {
+      const data = omit(event.data, ["object"]);
+      const user = await ctx.db
+        .query("users")
+        .withIndex("id", (q) => q.eq("id", data.id))
+        .unique();
+      if (!user) {
+        console.warn("user not found", data.id);
+        break;
+      }
+      await ctx.db.delete(user._id);
+      break;
+    }
+  }
+  if (args.onEventHandle) {
+    await ctx.runMutation(args.onEventHandle as FunctionHandle<"mutation">, {
+      event: args.event.event,
+      data: args.event.data,
+    });
+  }
+}
+
+export const onWebhookEvent = mutation({
   args: {
     apiKey: v.string(),
-    eventId: v.string(),
-    event: v.string(),
-    updatedAt: v.optional(v.string()),
+    event: vEvent,
     onEventHandle: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
-    await eventWorkpool.cancelAll(ctx);
-    await eventWorkpool.enqueueAction(ctx, internal.lib.updateEvents, {
-      apiKey: args.apiKey,
-      onEventHandle: args.onEventHandle,
-      eventTypes: args.eventTypes,
-      logLevel: args.logLevel,
-    });
+    const isCreateEvent = args.event.event.endsWith(".created");
+
+    if (isCreateEvent) {
+      // Process create events immediately
+      await processEventHandler(ctx, args);
+    } else {
+      // Enqueue update/delete events to workpool
+      await eventWorkpool.cancelAll(ctx);
+      await eventWorkpool.enqueueAction(ctx, internal.lib.updateEvents, {
+        apiKey: args.apiKey,
+        onEventHandle: args.onEventHandle,
+        eventTypes: args.eventTypes,
+        logLevel: args.logLevel,
+      });
+    }
+    return null;
   },
 });
 
@@ -107,74 +194,7 @@ export const processEvent = internalMutation({
     onEventHandle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    if (args.logLevel === "DEBUG") {
-      console.log("processing event", args.event);
-    }
-    const dbEvent = await ctx.db
-      .query("events")
-      .withIndex("eventId", (q) => q.eq("eventId", args.event.id))
-      .unique();
-    if (dbEvent) {
-      console.log("event already processed", args.event.id);
-      return;
-    }
-    await ctx.db.insert("events", {
-      eventId: args.event.id,
-      event: args.event.event,
-      updatedAt: args.event.data.updatedAt,
-    });
-    const event = args.event as WorkOSEvent;
-    switch (event.event) {
-      case "user.created": {
-        const data = omit(event.data, ["object"]);
-        const existingUser = await ctx.db
-          .query("users")
-          .withIndex("id", (q) => q.eq("id", data.id))
-          .unique();
-        if (existingUser) {
-          console.warn("user already exists", data.id);
-          break;
-        }
-        await ctx.db.insert("users", data);
-        break;
-      }
-      case "user.updated": {
-        const data = omit(event.data, ["object"]);
-        const user = await ctx.db
-          .query("users")
-          .withIndex("id", (q) => q.eq("id", data.id))
-          .unique();
-        if (!user) {
-          console.error("user not found", data.id);
-          break;
-        }
-        if (user.updatedAt >= data.updatedAt) {
-          console.warn(`user already updated for event ${event.id}, skipping`);
-          break;
-        }
-        await ctx.db.patch(user._id, data);
-        break;
-      }
-      case "user.deleted": {
-        const data = omit(event.data, ["object"]);
-        const user = await ctx.db
-          .query("users")
-          .withIndex("id", (q) => q.eq("id", data.id))
-          .unique();
-        if (!user) {
-          console.warn("user not found", data.id);
-          break;
-        }
-        await ctx.db.delete(user._id);
-        break;
-      }
-    }
-    if (args.onEventHandle) {
-      await ctx.runMutation(args.onEventHandle as FunctionHandle<"mutation">, {
-        event: args.event.event,
-        data: args.event.data,
-      });
-    }
+    await processEventHandler(ctx, args);
   },
 });
 
