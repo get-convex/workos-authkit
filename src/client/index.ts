@@ -18,7 +18,9 @@ import {
 } from "@workos-inc/node";
 import type { SetRequired } from "type-fest";
 import { v } from "convex/values";
+import { parse } from "convex-helpers/validators";
 import type { ComponentApi } from "../component/_generated/component.js";
+import { vEvent } from "../component/lib.js";
 
 type WorkOSResponsePayload =
   | AuthenticationActionResponseData
@@ -226,15 +228,12 @@ export class AuthKit<DataModel extends GenericDataModel> {
         if (this.config.logLevel === "DEBUG") {
           console.log("received event", event);
         }
-        await ctx.runMutation(this.component.lib.enqueueWebhookEvent, {
+        await ctx.runMutation(this.component.lib.onWebhookEvent, {
           apiKey: this.config.apiKey,
-          eventId: event.id,
-          event: event.event,
+          event: parse(vEvent, event),
           onEventHandle: this.config.authFunctions?.authKitEvent
             ? await createFunctionHandle(this.config.authFunctions.authKitEvent)
             : undefined,
-          updatedAt:
-            "updated_at" in event ? (event.updated_at as string) : undefined,
           eventTypes: this.config.additionalEventTypes,
           logLevel: this.config.logLevel,
         });
