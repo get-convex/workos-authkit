@@ -24,25 +24,6 @@ import type { FunctionReference } from "convex/server";
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
     lib: {
-      onWebhookEvent: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          apiKey: string;
-          event: {
-            id: string;
-            createdAt: string;
-            event: string;
-            data: Record<string, unknown>;
-            context?: Record<string, unknown>;
-          };
-          eventTypes?: Array<string>;
-          logLevel?: "DEBUG";
-          onEventHandle?: string;
-        },
-        any,
-        Name
-      >;
       getAuthUser: FunctionReference<
         "query",
         "internal",
@@ -61,6 +42,25 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           profilePictureUrl?: null | string;
           updatedAt: string;
         } | null,
+        Name
+      >;
+      onWebhookEvent: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          apiKey: string;
+          event: {
+            context?: Record<string, any>;
+            createdAt: string;
+            data: Record<string, any>;
+            event: string;
+            id: string;
+          };
+          eventTypes?: Array<string>;
+          logLevel?: "DEBUG";
+          onEventHandle?: string;
+        },
+        null,
         Name
       >;
     };
