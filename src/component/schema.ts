@@ -21,4 +21,9 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index("id", ["id"]),
+  // Sync state for manual backfill
+  syncState: defineTable({
+    key: v.literal("lastCheckpointedEventId"),
+    value: v.string(),
+  }).index("key", ["key"]),
 });
