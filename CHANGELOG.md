@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Support the latest versions of @workos-inc/authkit-react and @workos-inc/node
+
 ## 0.1.6
 
 - Parse webhook payloads to avoid breakages on new properties
