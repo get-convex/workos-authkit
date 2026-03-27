@@ -122,7 +122,6 @@ export const onWebhookEvent = mutation({
       await processEventHandler(ctx, args);
     } else {
       // Enqueue update/delete events to workpool
-      await eventWorkpool.cancelAll(ctx);
       await eventWorkpool.enqueueAction(ctx, internal.lib.updateEvents, {
         apiKey: args.apiKey,
         onEventHandle: args.onEventHandle,
@@ -154,6 +153,9 @@ export const updateEvents = internalAction({
     logLevel: v.optional(v.literal("DEBUG")),
   },
   handler: async (ctx, args) => {
+    // Cancel other pending workpool jobs since this run will
+    // process all available events from the WorkOS API.
+    await eventWorkpool.cancelAll(ctx);
     const workos = new WorkOS(args.apiKey);
     const cursor = await ctx.runQuery(internal.lib.getCursor);
     let nextCursor = cursor ?? undefined;
