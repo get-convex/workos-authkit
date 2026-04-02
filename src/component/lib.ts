@@ -61,7 +61,7 @@ async function processEventHandler(
         .unique();
       if (existingUser) {
         console.warn("user already exists", data.id);
-        break;
+        return;
       }
       await ctx.db.insert("users", data);
       break;
@@ -74,11 +74,11 @@ async function processEventHandler(
         .unique();
       if (!user) {
         console.error("user not found", data.id);
-        break;
+        return;
       }
       if (user.updatedAt >= data.updatedAt) {
         console.warn(`user already updated for event ${event.id}, skipping`);
-        break;
+        return;
       }
       await ctx.db.patch(user._id, data);
       break;
@@ -91,7 +91,7 @@ async function processEventHandler(
         .unique();
       if (!user) {
         console.warn("user not found", data.id);
-        break;
+        return;
       }
       await ctx.db.delete(user._id);
       break;
