@@ -64,6 +64,8 @@ export const { authKitEvent } = authKit.events({
   },
 });
 
+export const { backfillUsers } = authKit.utils();
+
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx, _args) => {

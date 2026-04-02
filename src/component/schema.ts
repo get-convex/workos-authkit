@@ -7,6 +7,9 @@ export default defineSchema({
     event: v.string(),
     updatedAt: v.optional(v.string()),
   }).index("eventId", ["eventId"]),
+  backfillState: defineTable({
+    apiKey: v.string(),
+  }),
   users: defineTable({
     id: v.string(),
     email: v.string(),

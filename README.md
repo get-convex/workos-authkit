@@ -10,6 +10,7 @@ Features:
 
 - Sync user data from WorkOS to your Convex database reliably and durably.
 - Respond to events with Convex functions.
+- Backfill existing WorkOS users when adding the component to an existing app.
 
 See [example](./example) for a demo of how to incorporate this component into your application.
 
@@ -234,6 +235,28 @@ export const { authKitEvent } = authKit.events({
   },
 });
 ```
+
+## Backfilling existing users
+
+If you're adding this component to an app that already has users in WorkOS, you
+can backfill them into the component's user table. The backfill also fires
+`user.created` event handlers, so your app's own tables get populated too.
+
+Export the backfill utility from your auth file:
+
+```ts
+// convex/auth.ts
+export const { backfillUsers } = authKit.utils();
+```
+
+Then trigger it from the CLI or the Convex dashboard:
+
+```sh
+npx convex run auth:backfillUsers
+```
+
+The backfill processes users oldest-first. It's idempotent - if interrupted, just
+run it again and it will skip users that are already synced.
 
 ## Actions
 

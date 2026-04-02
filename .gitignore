@@ -13,3 +13,14 @@ node_modules
 # npm pack output
 *.tgz
 *.tsbuildinfo
+
+# ai
+.factory
+.windsurf
+.claude
+.cursor
+.agents
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+example/convex/_generated/ai
