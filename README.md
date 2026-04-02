@@ -255,7 +255,7 @@ Then trigger it from the CLI or the Convex dashboard:
 npx convex run auth:backfillUsers
 ```
 
-The backfill processes users newest-first. It's idempotent - if interrupted, just
+The backfill processes users oldest-first. It's idempotent - if interrupted, just
 run it again and it will skip users that are already synced.
 
 ## Actions

@@ -58,7 +58,7 @@ describe("backfill", () => {
     vi.restoreAllMocks();
   });
 
-  test("fetchUsersPage returns users from WorkOS", async () => {
+  test("processUsersPage fetches and inserts users, returns only cursor", async () => {
     const user = makeUser();
     const { WorkOS } = await import("@workos-inc/node");
     (WorkOS as unknown as ReturnType<typeof vi.fn>).mockImplementation(
@@ -78,10 +78,42 @@ describe("backfill", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
-    const result = await t.action(internal.backfill.fetchUsersPage, {});
+    const result = await t.action(internal.backfill.processUsersPage, {});
 
-    expect(result.users).toEqual([user]);
-    expect(result.nextCursor).toBeUndefined();
+    expect(result).toEqual({ nextCursor: undefined });
+
+    const dbUsers = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(dbUsers).toHaveLength(1);
+    expect(dbUsers[0].id).toBe(user.id);
+  });
+
+  test("processUsersPage passes order asc to listUsers", async () => {
+    const { WorkOS } = await import("@workos-inc/node");
+    const listUsersMock = vi.fn().mockResolvedValue({
+      data: [],
+      listMetadata: { after: null },
+    });
+    (WorkOS as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      function () {
+        return {
+          userManagement: { listUsers: listUsersMock },
+        };
+      }
+    );
+
+    const t = initConvexTest();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
+    });
+    await t.action(internal.backfill.processUsersPage, {});
+
+    expect(listUsersMock).toHaveBeenCalledWith({
+      limit: 100,
+      after: undefined,
+      order: "asc",
+    });
   });
 
   test("upsertUsersPage inserts new users", async () => {
@@ -157,7 +189,7 @@ describe("backfill", () => {
     expect(backfillState).toBeNull();
   });
 
-  test("fetchUsersPage returns cursor for pagination", async () => {
+  test("processUsersPage returns cursor for pagination", async () => {
     const user = makeUser({ id: "user_p1", email: "p1@example.com" });
 
     const { WorkOS } = await import("@workos-inc/node");
@@ -178,13 +210,18 @@ describe("backfill", () => {
     await t.run(async (ctx) => {
       await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
-    const result = await t.action(internal.backfill.fetchUsersPage, {});
+    const result = await t.action(internal.backfill.processUsersPage, {});
 
-    expect(result.users).toEqual([user]);
-    expect(result.nextCursor).toBe("cursor_abc");
+    expect(result).toEqual({ nextCursor: "cursor_abc" });
+
+    const dbUsers = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(dbUsers).toHaveLength(1);
+    expect(dbUsers[0].id).toBe(user.id);
   });
 
-  test("pagination data flows through fetch and upsert", async () => {
+  test("pagination data flows through processUsersPage", async () => {
     const page1Users = [
       makeUser({ id: "user_p1", email: "p1@example.com" }),
     ];
@@ -217,20 +254,13 @@ describe("backfill", () => {
       await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
 
-    // Simulate the pagination loop: fetch page 1, upsert, fetch page 2, upsert
-    const page1 = await t.action(internal.backfill.fetchUsersPage, {});
+    const page1 = await t.action(internal.backfill.processUsersPage, {});
     expect(page1.nextCursor).toBe("cursor_abc");
-    await t.mutation(internal.backfill.upsertUsersPage, {
-      users: page1.users,
-    });
 
-    const page2 = await t.action(internal.backfill.fetchUsersPage, {
+    const page2 = await t.action(internal.backfill.processUsersPage, {
       after: page1.nextCursor,
     });
     expect(page2.nextCursor).toBeUndefined();
-    await t.mutation(internal.backfill.upsertUsersPage, {
-      users: page2.users,
-    });
 
     const dbUsers = await t.run(async (ctx) => {
       return ctx.db.query("users").collect();
@@ -267,7 +297,7 @@ describe("backfill", () => {
     warnSpy.mockRestore();
   });
 
-  test("workflow upsert is idempotent after workflow run", async () => {
+  test("upsert is idempotent after processUsersPage inserts", async () => {
     const users = [
       makeUser({ id: "user_idem", email: "idem@example.com" }),
     ];
@@ -287,12 +317,12 @@ describe("backfill", () => {
     );
 
     const t = initConvexTest();
-
-    // Run the workflow to insert users
-    await t.mutation(api.backfill.startBackfill, {
-      apiKey: "sk_test_123",
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
-    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    // Insert users via processUsersPage (the actual insertion path)
+    await t.action(internal.backfill.processUsersPage, {});
 
     // Re-upsert the same users directly
     await t.mutation(internal.backfill.upsertUsersPage, { users });

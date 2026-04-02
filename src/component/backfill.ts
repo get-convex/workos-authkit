@@ -27,21 +27,20 @@ export const getBackfillApiKey = internalQuery({
   },
 });
 
-export const fetchUsersPage = internalAction({
+/** Fetches one page of users from WorkOS and upserts them, returning only the cursor. */
+export const processUsersPage = internalAction({
   args: {
     after: v.optional(v.string()),
+    onEventHandle: v.optional(v.string()),
+    logLevel: v.optional(v.literal("DEBUG")),
   },
   returns: v.object({
-    users: v.array(vUser),
     nextCursor: v.optional(v.string()),
   }),
   handler: async (
     ctx,
     args
-  ): Promise<{
-    users: Array<typeof vUser.type>;
-    nextCursor: string | undefined;
-  }> => {
+  ): Promise<{ nextCursor: string | undefined }> => {
     const apiKey: string | null = await ctx.runQuery(
       internal.backfill.getBackfillApiKey,
       {}
@@ -55,8 +54,15 @@ export const fetchUsersPage = internalAction({
       after: args.after,
       order: "asc",
     });
+    const users = data.map(({ object: _object, ...rest }) => rest);
+    if (users.length > 0) {
+      await ctx.runMutation(internal.backfill.upsertUsersPage, {
+        users,
+        onEventHandle: args.onEventHandle,
+        logLevel: args.logLevel,
+      });
+    }
     return {
-      users: data.map(({ object: _object, ...rest }) => rest),
       nextCursor: listMetadata.after ?? undefined,
     };
   },
@@ -118,17 +124,14 @@ export const backfillBatch = workflow.define({
     let pagesProcessed = 0;
 
     while (pagesProcessed < MAX_PAGES_PER_BATCH) {
-      const result = await step.runAction(internal.backfill.fetchUsersPage, {
-        after: cursor,
-      });
-
-      if (result.users.length > 0) {
-        await step.runMutation(internal.backfill.upsertUsersPage, {
-          users: result.users,
+      const result = await step.runAction(
+        internal.backfill.processUsersPage,
+        {
+          after: cursor,
           onEventHandle: args.onEventHandle,
           logLevel: args.logLevel,
-        });
-      }
+        }
+      );
 
       cursor = result.nextCursor;
       pagesProcessed++;
