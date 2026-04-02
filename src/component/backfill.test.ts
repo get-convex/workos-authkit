@@ -75,9 +75,10 @@ describe("backfill", () => {
     );
 
     const t = initConvexTest();
-    const result = await t.action(internal.backfill.fetchUsersPage, {
-      apiKey: "sk_test_123",
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
+    const result = await t.action(internal.backfill.fetchUsersPage, {});
 
     expect(result.users).toEqual([user]);
     expect(result.nextCursor).toBeUndefined();
@@ -148,6 +149,12 @@ describe("backfill", () => {
     });
     expect(dbUsers).toHaveLength(2);
     expect(dbUsers.map((u) => u.id).sort()).toEqual(["user_w1", "user_w2"]);
+
+    // Verify backfillState is cleaned up
+    const backfillState = await t.run(async (ctx) => {
+      return ctx.db.query("backfillState").unique();
+    });
+    expect(backfillState).toBeNull();
   });
 
   test("fetchUsersPage returns cursor for pagination", async () => {
@@ -168,9 +175,10 @@ describe("backfill", () => {
     );
 
     const t = initConvexTest();
-    const result = await t.action(internal.backfill.fetchUsersPage, {
-      apiKey: "sk_test_123",
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
     });
+    const result = await t.action(internal.backfill.fetchUsersPage, {});
 
     expect(result.users).toEqual([user]);
     expect(result.nextCursor).toBe("cursor_abc");
@@ -205,18 +213,18 @@ describe("backfill", () => {
     );
 
     const t = initConvexTest();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_test_123" });
+    });
 
     // Simulate the pagination loop: fetch page 1, upsert, fetch page 2, upsert
-    const page1 = await t.action(internal.backfill.fetchUsersPage, {
-      apiKey: "sk_test_123",
-    });
+    const page1 = await t.action(internal.backfill.fetchUsersPage, {});
     expect(page1.nextCursor).toBe("cursor_abc");
     await t.mutation(internal.backfill.upsertUsersPage, {
       users: page1.users,
     });
 
     const page2 = await t.action(internal.backfill.fetchUsersPage, {
-      apiKey: "sk_test_123",
       after: page1.nextCursor,
     });
     expect(page2.nextCursor).toBeUndefined();
@@ -229,6 +237,34 @@ describe("backfill", () => {
     });
     expect(dbUsers).toHaveLength(2);
     expect(dbUsers.map((u) => u.id).sort()).toEqual(["user_p1", "user_p2"]);
+  });
+
+  test("startBackfill skips when backfill already in progress", async () => {
+    const t = initConvexTest();
+
+    // Pre-insert a backfillState row to simulate an in-progress backfill
+    await t.run(async (ctx) => {
+      await ctx.db.insert("backfillState", { apiKey: "sk_existing" });
+    });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await t.mutation(api.backfill.startBackfill, {
+      apiKey: "sk_test_123",
+    });
+
+    // Should have warned about skipping
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Backfill already in progress, skipping"
+    );
+
+    // Original key should remain unchanged
+    const state = await t.run(async (ctx) => {
+      return ctx.db.query("backfillState").unique();
+    });
+    expect(state?.apiKey).toBe("sk_existing");
+
+    warnSpy.mockRestore();
   });
 
   test("workflow upsert is idempotent after workflow run", async () => {

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import {
   internalAction,
   internalMutation,
+  internalQuery,
   mutation,
 } from "./_generated/server.js";
 import { components, internal } from "./_generated/api.js";
@@ -17,17 +18,38 @@ const workflow = new WorkflowManager(components.backfillWorkflow, {
 
 const vUser = schema.tables.users.validator;
 
+export const getBackfillApiKey = internalQuery({
+  args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx): Promise<string | null> => {
+    const backfillState = await ctx.db.query("backfillState").unique();
+    return backfillState?.apiKey ?? null;
+  },
+});
+
 export const fetchUsersPage = internalAction({
   args: {
-    apiKey: v.string(),
     after: v.optional(v.string()),
   },
   returns: v.object({
     users: v.array(vUser),
     nextCursor: v.optional(v.string()),
   }),
-  handler: async (_ctx, args) => {
-    const workos = new WorkOS(args.apiKey);
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    users: Array<typeof vUser.type>;
+    nextCursor: string | undefined;
+  }> => {
+    const apiKey: string | null = await ctx.runQuery(
+      internal.backfill.getBackfillApiKey,
+      {}
+    );
+    if (!apiKey) {
+      throw new Error("Backfill API key not found");
+    }
+    const workos = new WorkOS(apiKey);
     const { data, listMetadata } = await workos.userManagement.listUsers({
       limit: 100,
       after: args.after,
@@ -83,7 +105,6 @@ const MAX_PAGES_PER_BATCH = 50;
 
 export const backfillBatch = workflow.define({
   args: {
-    apiKey: v.string(),
     onEventHandle: v.optional(v.string()),
     logLevel: v.optional(v.literal("DEBUG")),
     after: v.optional(v.string()),
@@ -98,7 +119,6 @@ export const backfillBatch = workflow.define({
 
     while (pagesProcessed < MAX_PAGES_PER_BATCH) {
       const result = await step.runAction(internal.backfill.fetchUsersPage, {
-        apiKey: args.apiKey,
         after: cursor,
       });
 
@@ -126,7 +146,6 @@ export const backfillOnComplete = internalMutation({
     workflowId: v.string(),
     result: vResultValidator,
     context: v.object({
-      apiKey: v.string(),
       onEventHandle: v.optional(v.string()),
       logLevel: v.optional(v.literal("DEBUG")),
     }),
@@ -135,13 +154,22 @@ export const backfillOnComplete = internalMutation({
   handler: async (ctx, args) => {
     if (args.result.kind !== "success") {
       console.error(`Backfill workflow ${args.result.kind}`, args.result);
+      const backfillState = await ctx.db.query("backfillState").unique();
+      if (backfillState) {
+        await ctx.db.delete(backfillState._id);
+      }
       return null;
     }
     const returnValue = args.result.returnValue as {
       done: boolean;
       cursor?: string;
     };
-    if (!returnValue.done && returnValue.cursor) {
+    if (returnValue.done || !returnValue.cursor) {
+      const backfillState = await ctx.db.query("backfillState").unique();
+      if (backfillState) {
+        await ctx.db.delete(backfillState._id);
+      }
+    } else {
       await workflow.start(
         ctx,
         internal.backfill.backfillBatch,
@@ -167,8 +195,13 @@ export const startBackfill = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const existing = await ctx.db.query("backfillState").unique();
+    if (existing) {
+      console.warn("Backfill already in progress, skipping");
+      return null;
+    }
+    await ctx.db.insert("backfillState", { apiKey: args.apiKey });
     const context = {
-      apiKey: args.apiKey,
       onEventHandle: args.onEventHandle,
       logLevel: args.logLevel,
     };
