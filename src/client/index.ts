@@ -6,6 +6,7 @@ import {
   type HttpRouter,
   createFunctionHandle,
   httpActionGeneric,
+  internalActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
 import type { RunQueryCtx } from "./types.js";
@@ -202,6 +203,25 @@ export class AuthKit<DataModel extends GenericDataModel> {
             deny,
           });
           return responsePayload;
+        },
+      }),
+    };
+  }
+  utils() {
+    return {
+      backfillUsers: internalActionGeneric({
+        args: {},
+        returns: v.null(),
+        handler: async (ctx) => {
+          const onEventHandle = this.config.authFunctions?.authKitEvent
+            ? await createFunctionHandle(this.config.authFunctions.authKitEvent)
+            : undefined;
+          await ctx.runMutation(this.component.backfill.startBackfill, {
+            apiKey: this.config.apiKey,
+            onEventHandle,
+            logLevel: this.config.logLevel,
+          });
+          return null;
         },
       }),
     };

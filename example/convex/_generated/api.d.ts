@@ -50,6 +50,14 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   workOSAuthKit: {
+    backfill: {
+      startBackfill: FunctionReference<
+        "mutation",
+        "internal",
+        { apiKey: string; logLevel?: "DEBUG"; onEventHandle?: string },
+        null
+      >;
+    };
     lib: {
       getAuthUser: FunctionReference<
         "query",

@@ -23,6 +23,15 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    backfill: {
+      startBackfill: FunctionReference<
+        "mutation",
+        "internal",
+        { apiKey: string; logLevel?: "DEBUG"; onEventHandle?: string },
+        null,
+        Name
+      >;
+    };
     lib: {
       getAuthUser: FunctionReference<
         "query",
