@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+- feat: add user backfill (#38)
+- fix: handle create user webhooks immediately (#23)
+
 ## 0.1.7
 
 - Support the latest versions of @workos-inc/authkit-react and @workos-inc/node
