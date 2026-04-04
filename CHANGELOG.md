@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- fix: pin @workos/node temporarily to avoid node imports in convex runtime
+
 ## 0.2.0
 
 - feat: add user backfill (#38)
