@@ -64,7 +64,7 @@
   },
   "peerDependencies": {
     "@workos-inc/authkit-react": "^0.13.0 || ^0.16.0",
-    "@workos-inc/node": "^7.75.1 || >=8.0.0 <8.11.0",
+    "@workos-inc/node": "^7.75.1 || ^8.0.0",
     "convex": "^1.29.3",
     "react": "^18.3.1 || ^19.0.0"
   },
