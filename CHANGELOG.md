@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- fix: unpin @workos-inc/node, fixed in 8.11.1
+
 ## 0.2.1
 
 - fix: pin @workos/node temporarily to avoid node imports in convex runtime
