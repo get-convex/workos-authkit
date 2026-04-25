@@ -159,7 +159,7 @@ export const backfillOnComplete = internalMutation({
       console.error(`Backfill workflow ${args.result.kind}`, args.result);
       const backfillState = await ctx.db.query("backfillState").unique();
       if (backfillState) {
-        await ctx.db.delete(backfillState._id);
+        await ctx.db.delete("backfillState", backfillState._id);
       }
       return null;
     }
@@ -170,7 +170,7 @@ export const backfillOnComplete = internalMutation({
     if (returnValue.done || !returnValue.cursor) {
       const backfillState = await ctx.db.query("backfillState").unique();
       if (backfillState) {
-        await ctx.db.delete(backfillState._id);
+        await ctx.db.delete("backfillState", backfillState._id);
       }
     } else {
       await workflow.start(
