@@ -80,7 +80,7 @@ async function processEventHandler(
         console.warn(`user already updated for event ${event.id}, skipping`);
         return;
       }
-      await ctx.db.patch(user._id, data);
+      await ctx.db.patch("users", user._id, data);
       break;
     }
     case "user.deleted": {
@@ -93,7 +93,7 @@ async function processEventHandler(
         console.warn("user not found", data.id);
         return;
       }
-      await ctx.db.delete(user._id);
+      await ctx.db.delete("users", user._id);
       break;
     }
   }
