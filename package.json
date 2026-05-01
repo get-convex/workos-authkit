@@ -76,7 +76,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.1",
     "chokidar-cli": "3.0.0",
-    "convex": "1.35.1",
+    "convex": "1.37.0",
     "convex-test": "0.0.47",
     "eslint": "9.39.4",
     "eslint-plugin-react": "7.37.5",
@@ -95,7 +95,7 @@
   "types": "./dist/client/index.d.ts",
   "module": "./dist/client/index.js",
   "dependencies": {
-    "@convex-dev/workflow": "^0.3.9",
+    "@convex-dev/workflow": "^0.3.12",
     "@convex-dev/workos": "^0.0.1",
     "@convex-dev/workpool": "^0.4.0",
     "convex-helpers": "^0.1.111",
