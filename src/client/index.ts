@@ -209,7 +209,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
   }
   utils() {
     return {
-      backfillUsers: internalActionGeneric({
+      backfillUsers: internalMutationGeneric({
         args: {},
         returns: v.null(),
         handler: async (ctx) => {
