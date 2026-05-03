@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- fix: change backfill function to mutation
+
 ## 0.2.2
 
 - fix: unpin @workos-inc/node, fixed in 8.11.1
