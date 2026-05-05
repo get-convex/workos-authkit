@@ -109,7 +109,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
     return [
       {
         type: "customJwt",
-        issuer: apiBaseUrl,
+        issuer: `${apiBaseUrl}/`,
         algorithm: "RS256",
         jwks: `${apiBaseUrl}/sso/jwks/${this.config.clientId}`,
         applicationID: this.config.clientId,
