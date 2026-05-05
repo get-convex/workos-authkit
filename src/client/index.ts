@@ -6,7 +6,6 @@ import {
   type HttpRouter,
   createFunctionHandle,
   httpActionGeneric,
-  internalActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
 import type { RunQueryCtx } from "./types.js";
@@ -31,6 +30,7 @@ type Options = {
   authFunctions?: AuthFunctions;
   clientId?: string;
   apiKey?: string;
+  apiHostname?: string;
   webhookSecret?: string;
   webhookPath?: string;
   additionalEventTypes?: WorkOSEvent["event"][];
@@ -97,25 +97,30 @@ export class AuthKit<DataModel extends GenericDataModel> {
       actionSecret: options?.actionSecret ?? process.env.WORKOS_ACTION_SECRET,
       webhookPath: options?.webhookPath ?? "/workos/webhook",
     };
-    this.workos = new WorkOS(this.config.apiKey);
+    this.workos = new WorkOS(this.config.apiKey, {
+      clientId: this.config.clientId,
+      apiHostname: this.config.apiHostname,
+    });
   }
 
-  getAuthConfigProviders = () =>
-    [
+  getAuthConfigProviders = () => {
+    const apiBaseUrl = `https://${this.config.apiHostname ?? "api.workos.com"}`;
+    return [
       {
         type: "customJwt",
-        issuer: `https://api.workos.com/`,
+        issuer: `${apiBaseUrl}/`,
         algorithm: "RS256",
         jwks: `https://api.workos.com/sso/jwks/${this.config.clientId}`,
         applicationID: this.config.clientId,
       },
       {
         type: "customJwt",
-        issuer: `https://api.workos.com/user_management/${this.config.clientId}`,
+        issuer: `${apiBaseUrl}/user_management/${this.config.clientId}`,
         algorithm: "RS256",
         jwks: `https://api.workos.com/sso/jwks/${this.config.clientId}`,
       },
     ] satisfies AuthConfig["providers"];
+  };
 
   async getAuthUser(ctx: RunQueryCtx) {
     const identity = await ctx.auth.getUserIdentity();
