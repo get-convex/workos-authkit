@@ -10,8 +10,6 @@ export default [
     ignores: [
       "dist/**",
       "example/dist/**",
-      "*.config.{js,mjs,cjs,ts,tsx}",
-      "example/**/*.config.{js,mjs,cjs,ts,tsx}",
       "**/_generated/",
       "initTemplate.mjs",
     ],

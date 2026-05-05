@@ -88,6 +88,23 @@ authKit.registerRoutes(http);
 export default http;
 ```
 
+## Custom domain
+
+If you've configured a [custom WorkOS authentication API domain](https://workos.com/docs/custom-domains/auth-api), set the `apiHostname` option (or `WORKOS_API_HOSTNAME` env var) when constructing the AuthKit client. This routes the WorkOS SDK through your domain and updates the JWT issuer and JWKS URLs to match.
+
+```ts
+// convex/auth.ts
+export const authKit = new AuthKit<DataModel>(components.workOSAuthKit, {
+  apiHostname: "auth.example.com",
+});
+```
+
+Or set it on the deployment:
+
+```sh
+npx convex env set WORKOS_API_HOSTNAME=auth.example.com
+```
+
 ## Usage
 
 User create/update/delete in WorkOS will be automatically synced by the
