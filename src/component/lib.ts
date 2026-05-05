@@ -183,7 +183,7 @@ export const updateEvents = internalAction({
           onEventHandle: args.onEventHandle,
         });
       }
-      nextCursor = listMetadata.after;
+      nextCursor = listMetadata.after ?? undefined;
       rangeStart = undefined;
     } while (nextCursor);
   },
