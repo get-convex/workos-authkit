@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- chore: support @workos-inc/node v9
+
 ## 0.2.3
 
 - fix: change backfill function to mutation
