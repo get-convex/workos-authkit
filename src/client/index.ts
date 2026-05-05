@@ -95,7 +95,6 @@ export class AuthKit<DataModel extends GenericDataModel> {
       apiKey,
       webhookSecret,
       actionSecret: options?.actionSecret ?? process.env.WORKOS_ACTION_SECRET,
-      apiHostname: options?.apiHostname ?? process.env.WORKOS_API_HOSTNAME,
       webhookPath: options?.webhookPath ?? "/workos/webhook",
     };
     this.workos = new WorkOS(this.config.apiKey, {
