@@ -90,20 +90,20 @@ describe("AuthKit.getAuthConfigProviders", () => {
     );
   });
 
-  test("uses custom hostname from option in both providers", () => {
+  test("custom hostname rewrites issuer but not jwks", () => {
     const authKit = new AuthKit(fakeComponent, {
       apiHostname: "auth.example.com",
     });
     const providers = authKit.getAuthConfigProviders();
     expect(providers[0].issuer).toBe("https://auth.example.com/");
     expect(providers[0].jwks).toBe(
-      "https://auth.example.com/sso/jwks/client_test"
+      "https://api.workos.com/sso/jwks/client_test"
     );
     expect(providers[1].issuer).toBe(
       "https://auth.example.com/user_management/client_test"
     );
     expect(providers[1].jwks).toBe(
-      "https://auth.example.com/sso/jwks/client_test"
+      "https://api.workos.com/sso/jwks/client_test"
     );
   });
 });

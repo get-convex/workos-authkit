@@ -110,14 +110,14 @@ export class AuthKit<DataModel extends GenericDataModel> {
         type: "customJwt",
         issuer: `${apiBaseUrl}/`,
         algorithm: "RS256",
-        jwks: `${apiBaseUrl}/sso/jwks/${this.config.clientId}`,
+        jwks: `https://api.workos.com/sso/jwks/${this.config.clientId}`,
         applicationID: this.config.clientId,
       },
       {
         type: "customJwt",
         issuer: `${apiBaseUrl}/user_management/${this.config.clientId}`,
         algorithm: "RS256",
-        jwks: `${apiBaseUrl}/sso/jwks/${this.config.clientId}`,
+        jwks: `https://api.workos.com/sso/jwks/${this.config.clientId}`,
       },
     ] satisfies AuthConfig["providers"];
   };
