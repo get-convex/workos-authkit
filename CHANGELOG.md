@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.5
+
+- fix: skip unknown events (#56)
+- feat: support custom auth api domain (#52)
+
 ## 0.2.4
 
 - chore: support @workos-inc/node v9
