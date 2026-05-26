@@ -23,5 +23,5 @@ export default defineSchema({
     locale: v.optional(v.union(v.null(), v.string())),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index("id", ["id"]),
+  }).index("id", ["id"]).index("externalId", ["externalId"]),
 });
