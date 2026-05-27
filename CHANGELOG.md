@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.6
+
+- feat: Add public query to get user by `externalId` (#60)
+
 ## 0.2.5
 
 - fix: skip unknown events (#56)
