@@ -213,3 +213,17 @@ export const getAuthUser = query({
     return user ? withoutSystemFields(user) : null;
   },
 });
+
+export const getAuthUserByExternalId = query({
+  args: {
+    externalId: v.string(),
+  },
+  returns: v.union(schema.tables.users.validator, v.null()),
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("externalId", (q) => q.eq("externalId", args.externalId))
+      .unique();
+    return user ? withoutSystemFields(user) : null;
+  },
+});
