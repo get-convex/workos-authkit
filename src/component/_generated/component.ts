@@ -53,6 +53,26 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         } | null,
         Name
       >;
+      getAuthUserByExternalId: FunctionReference<
+        "query",
+        "internal",
+        { externalId: string },
+        {
+          createdAt: string;
+          email: string;
+          emailVerified: boolean;
+          externalId?: null | string;
+          firstName?: null | string;
+          id: string;
+          lastName?: null | string;
+          lastSignInAt?: null | string;
+          locale?: null | string;
+          metadata: Record<string, any>;
+          profilePictureUrl?: null | string;
+          updatedAt: string;
+        } | null,
+        Name
+      >;
       onWebhookEvent: FunctionReference<
         "mutation",
         "internal",
