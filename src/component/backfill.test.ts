@@ -23,6 +23,7 @@ vi.mock("@workos-inc/node", () => {
 const defaultUser = {
   id: "user_01ABC",
   email: "alice@example.com",
+  name: "Alice Smith" as string | null,
   firstName: "Alice" as string | null,
   lastName: "Smith" as string | null,
   emailVerified: true,
@@ -87,6 +88,7 @@ describe("backfill", () => {
     });
     expect(dbUsers).toHaveLength(1);
     expect(dbUsers[0].id).toBe(user.id);
+    expect(dbUsers[0].name).toBe(user.name);
   });
 
   test("processUsersPage passes order asc to listUsers", async () => {

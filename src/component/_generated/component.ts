@@ -48,6 +48,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           lastSignInAt?: null | string;
           locale?: null | string;
           metadata: Record<string, any>;
+          name?: null | string;
           profilePictureUrl?: null | string;
           updatedAt: string;
         } | null,
@@ -68,6 +69,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           lastSignInAt?: null | string;
           locale?: null | string;
           metadata: Record<string, any>;
+          name?: null | string;
           profilePictureUrl?: null | string;
           updatedAt: string;
         } | null,
