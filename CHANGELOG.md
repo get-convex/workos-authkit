@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.7
+
+- fix: accept WorkOS user name field (#63) @pereiraa15
+
 ## 0.2.6
 
 - feat: Add public query to get user by `externalId` (#60)
