@@ -13,6 +13,7 @@ export default defineSchema({
   users: defineTable({
     id: v.string(),
     email: v.string(),
+    name: v.optional(v.union(v.null(), v.string())),
     firstName: v.optional(v.union(v.null(), v.string())),
     lastName: v.optional(v.union(v.null(), v.string())),
     emailVerified: v.boolean(),
