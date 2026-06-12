@@ -1,43 +1,27 @@
 import type {
-  Auth,
   Expand,
-  FunctionArgs,
   FunctionReference,
-  FunctionReturnType,
-  StorageActionWriter,
-  StorageReader,
+  GenericActionCtx,
+  GenericDataModel,
+  GenericMutationCtx,
+  GenericQueryCtx,
 } from "convex/server";
 import type { GenericId } from "convex/values";
 
 // Type utils follow
 
-export type RunQueryCtx = {
-  auth: Auth;
-  runQuery: <Query extends FunctionReference<"query", "internal">>(
-    query: Query,
-    args: FunctionArgs<Query>
-  ) => Promise<FunctionReturnType<Query>>;
-};
-export type RunMutationCtx = RunQueryCtx & {
-  auth: Auth;
-  runMutation: <Mutation extends FunctionReference<"mutation", "internal">>(
-    mutation: Mutation,
-    args: FunctionArgs<Mutation>
-  ) => Promise<FunctionReturnType<Mutation>>;
-};
-export type RunActionCtx = RunMutationCtx & {
-  auth: Auth;
-  runAction<Action extends FunctionReference<"action", "internal">>(
-    action: Action,
-    args: FunctionArgs<Action>
-  ): Promise<FunctionReturnType<Action>>;
-};
-export type ActionCtx = RunActionCtx & {
-  storage: StorageActionWriter;
-};
-export type QueryCtx = RunQueryCtx & {
-  storage: StorageReader;
-};
+export type QueryCtx = Pick<
+  GenericQueryCtx<GenericDataModel>,
+  "auth" | "runQuery" | "storage"
+>;
+export type MutationCtx = Pick<
+  GenericMutationCtx<GenericDataModel>,
+  "auth" | "runQuery" | "runMutation"
+>;
+export type ActionCtx = Pick<
+  GenericActionCtx<GenericDataModel>,
+  "auth" | "runQuery" | "runMutation" | "runAction" | "storage"
+>;
 
 export type OpaqueIds<T> =
   T extends GenericId<infer _T>
