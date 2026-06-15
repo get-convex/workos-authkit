@@ -8,7 +8,7 @@ import {
   httpActionGeneric,
   internalMutationGeneric,
 } from "convex/server";
-import type { RunQueryCtx } from "./types.js";
+import type { ActionCtx, MutationCtx, QueryCtx } from "./types.js";
 import {
   WorkOS,
   type Event as WorkOSEvent,
@@ -122,7 +122,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
     ] satisfies AuthConfig["providers"];
   };
 
-  async getAuthUser(ctx: RunQueryCtx) {
+  async getAuthUser(ctx: QueryCtx | MutationCtx | ActionCtx) {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return null;
