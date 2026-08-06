@@ -4,10 +4,24 @@ import { WorkOS } from "@workos-inc/node";
 import { AuthKit } from "./index.js";
 import type { ComponentApi } from "../component/_generated/component.js";
 
+const workosMocks = vi.hoisted(() => ({
+  constructAction: vi.fn(),
+  constructEvent: vi.fn(),
+  signResponse: vi.fn(),
+}));
+
 vi.mock("@workos-inc/node", () => {
   return {
     WorkOS: vi.fn().mockImplementation(function () {
-      return {};
+      return {
+        actions: {
+          constructAction: workosMocks.constructAction,
+          signResponse: workosMocks.signResponse,
+        },
+        webhooks: {
+          constructEvent: workosMocks.constructEvent,
+        },
+      };
     }),
   };
 });
@@ -106,4 +120,54 @@ describe("AuthKit.getAuthConfigProviders", () => {
       "https://api.workos.com/sso/jwks/client_test"
     );
   });
+});
+
+describe("AuthKit.registerRoutes", () => {
+  beforeEach(() => {
+    for (const [k, v] of Object.entries(requiredEnv)) {
+      process.env[k] = v;
+    }
+  });
+
+  afterEach(() => {
+    for (const k of Object.keys(requiredEnv)) {
+      delete process.env[k];
+    }
+    vi.clearAllMocks();
+  });
+
+  test.each([
+    ["/workos/webhook", workosMocks.constructEvent],
+    ["/workos/action", workosMocks.constructAction],
+  ] as const)(
+    "passes the exact raw body to %s verification",
+    async (path, verify) => {
+      const authKit = new AuthKit(fakeComponent, {
+        actionSecret: "action_secret",
+      });
+      const route = vi.fn();
+      authKit.registerRoutes({ route } as never);
+
+      const registeredRoute = route.mock.calls.find(
+        ([candidate]) => candidate.path === path
+      )?.[0];
+      expect(registeredRoute).toBeDefined();
+
+      const rawBody = '{\n  "value": "\\u003c"\n}';
+      const request = new Request(`https://example.com${path}`, {
+        method: "POST",
+        headers: { "workos-signature": "t=123,v1=abc" },
+        body: rawBody,
+      });
+      const stopAfterVerification = new Error("stop after verification");
+      verify.mockRejectedValueOnce(stopAfterVerification);
+
+      await expect(registeredRoute!.handler._handler({}, request)).rejects.toBe(
+        stopAfterVerification
+      );
+      expect(verify).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: rawBody })
+      );
+    }
+  );
 });

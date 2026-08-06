@@ -23,8 +23,7 @@ import type { ComponentApi } from "../component/_generated/component.js";
 import { vEvent } from "../component/lib.js";
 
 type WorkOSResponsePayload =
-  | AuthenticationActionResponseData
-  | UserRegistrationActionResponseData;
+  AuthenticationActionResponseData | UserRegistrationActionResponseData;
 
 type Options = {
   authFunctions?: AuthFunctions;
@@ -249,7 +248,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
           throw new Error("webhook secret is not set");
         }
         const event = await this.workos.webhooks.constructEvent({
-          payload: JSON.parse(payload),
+          payload,
           sigHeader: sigHeader,
           secret,
         });
@@ -282,7 +281,7 @@ export class AuthKit<DataModel extends GenericDataModel> {
           throw new Error("webhook secret is not set");
         }
         const action = await this.workos.actions.constructAction({
-          payload: JSON.parse(payload),
+          payload,
           sigHeader: sigHeader,
           secret,
         });
