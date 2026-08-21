@@ -135,6 +135,32 @@ describe("onWebhookEvent", () => {
     expect(dbEvents).toHaveLength(1);
   });
 
+  test("user.updated delivered before user.created upserts the user", async () => {
+    const t = initConvexTest();
+    const created = makeUser();
+    const updated = makeUser({
+      name: "Alice Jones",
+      lastName: "Jones",
+      updatedAt: "2024-01-02T00:00:00.000Z",
+    });
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      apiKey: "sk_test_123",
+      event: makeEvent("user.updated", updated),
+    });
+    await t.mutation(api.lib.onWebhookEvent, {
+      apiKey: "sk_test_123",
+      event: makeEvent("user.created", created),
+    });
+
+    const dbUsers = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(dbUsers).toHaveLength(1);
+    expect(dbUsers[0].name).toBe("Alice Jones");
+    expect(dbUsers[0].updatedAt).toBe("2024-01-02T00:00:00.000Z");
+  });
+
   test("stale user.updated deliveries are skipped", async () => {
     const t = initConvexTest();
     const user = makeUser({

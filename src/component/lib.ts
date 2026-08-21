@@ -73,8 +73,12 @@ async function processEventHandler(
         .withIndex("id", (q) => q.eq("id", data.id))
         .unique();
       if (!user) {
-        console.error("user not found", data.id);
-        return;
+        // The update may have been delivered before the create; the
+        // payload is the full user object, so insert it. The create
+        // no-ops on arrival via the existing-user guard above.
+        console.warn("user not found for update, inserting", data.id);
+        await ctx.db.insert("users", data);
+        break;
       }
       if (user.updatedAt >= data.updatedAt) {
         console.warn(`user already updated for event ${event.id}, skipping`);
