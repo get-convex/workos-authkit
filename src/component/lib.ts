@@ -115,20 +115,9 @@ export const onWebhookEvent = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const isCreateEvent = args.event.event.endsWith(".created");
-
-    if (isCreateEvent) {
-      // Process create events immediately
-      await processEventHandler(ctx, args);
-    } else {
-      // Enqueue update/delete events to workpool
-      await eventWorkpool.enqueueAction(ctx, internal.lib.updateEvents, {
-        apiKey: args.apiKey,
-        onEventHandle: args.onEventHandle,
-        eventTypes: args.eventTypes,
-        logLevel: args.logLevel,
-      });
-    }
+    // The payload is signature-verified and dedupes on eventId, so all
+    // event types can be processed inline.
+    await processEventHandler(ctx, args);
     return null;
   },
 });
