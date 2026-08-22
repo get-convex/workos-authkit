@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.8
+## 0.2.9
 
 - Moves from Event API to trusting WebHooks directly for update/delete events.
   This fixes a bug where some events were missed when interleaved with create
@@ -9,6 +9,9 @@
   - user.created
   - user.updated
   - user.deleted
+
+## 0.2.8
+
 - Changes the type definitions in the "thick client" to be more readable
 
 ## 0.2.7
