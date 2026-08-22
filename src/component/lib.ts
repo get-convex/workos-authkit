@@ -73,8 +73,12 @@ async function processEventHandler(
         .withIndex("id", (q) => q.eq("id", data.id))
         .unique();
       if (!user) {
-        console.error("user not found", data.id);
-        return;
+        // The update may have been delivered before the create; the
+        // payload is the full user object, so insert it. The create
+        // no-ops on arrival via the existing-user guard above.
+        console.warn("user not found for update, inserting", data.id);
+        await ctx.db.insert("users", data);
+        break;
       }
       if (user.updatedAt >= data.updatedAt) {
         console.warn(`user already updated for event ${event.id}, skipping`);
@@ -115,20 +119,9 @@ export const onWebhookEvent = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const isCreateEvent = args.event.event.endsWith(".created");
-
-    if (isCreateEvent) {
-      // Process create events immediately
-      await processEventHandler(ctx, args);
-    } else {
-      // Enqueue update/delete events to workpool
-      await eventWorkpool.enqueueAction(ctx, internal.lib.updateEvents, {
-        apiKey: args.apiKey,
-        onEventHandle: args.onEventHandle,
-        eventTypes: args.eventTypes,
-        logLevel: args.logLevel,
-      });
-    }
+    // The payload is signature-verified and dedupes on eventId, so all
+    // event types can be processed inline.
+    await processEventHandler(ctx, args);
     return null;
   },
 });
