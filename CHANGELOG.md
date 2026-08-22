@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.8
+
+- Moves from Event API to trusting WebHooks directly for update/delete events.
+  This fixes a bug where some events were missed when interleaved with create
+  events. (#73)
+- This requires the the WebHook to be configured to receive:
+  - user.created
+  - user.updated
+  - user.deleted
+
 ## 0.2.7
 
 - fix: accept WorkOS user name field (#63) @pereiraa15
