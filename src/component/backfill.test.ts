@@ -44,7 +44,6 @@ function makeUser(overrides: Partial<typeof defaultUser> = {}) {
 /** Initialize a convex-test instance with sub-component registrations. */
 function initConvexTest() {
   const t = convexTest(schema, modules);
-  workpool.register(t, "eventWorkpool");
   workflow.register(t, "backfillWorkflow");
   return t;
 }
@@ -224,12 +223,8 @@ describe("backfill", () => {
   });
 
   test("pagination data flows through processUsersPage", async () => {
-    const page1Users = [
-      makeUser({ id: "user_p1", email: "p1@example.com" }),
-    ];
-    const page2Users = [
-      makeUser({ id: "user_p2", email: "p2@example.com" }),
-    ];
+    const page1Users = [makeUser({ id: "user_p1", email: "p1@example.com" })];
+    const page2Users = [makeUser({ id: "user_p2", email: "p2@example.com" })];
 
     const { WorkOS } = await import("@workos-inc/node");
     const listUsersMock = vi
@@ -300,9 +295,7 @@ describe("backfill", () => {
   });
 
   test("upsert is idempotent after processUsersPage inserts", async () => {
-    const users = [
-      makeUser({ id: "user_idem", email: "idem@example.com" }),
-    ];
+    const users = [makeUser({ id: "user_idem", email: "idem@example.com" })];
 
     const { WorkOS } = await import("@workos-inc/node");
     (WorkOS as unknown as ReturnType<typeof vi.fn>).mockImplementation(

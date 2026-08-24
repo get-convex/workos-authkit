@@ -50,6 +50,5 @@ export const internal: FilterApi<
 > = anyApi as any;
 
 export const components = componentsGeneric() as unknown as {
-  eventWorkpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"eventWorkpool">;
   backfillWorkflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"backfillWorkflow">;
 };

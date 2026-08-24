@@ -15,7 +15,6 @@ function register(
   name: string = "workOSAuthKit"
 ) {
   t.registerComponent(name, schema, modules);
-  workpool.register(t, `${name}/eventWorkpool`);
   workflow.register(t, `${name}/backfillWorkflow`);
 }
 export default { register, schema, modules };

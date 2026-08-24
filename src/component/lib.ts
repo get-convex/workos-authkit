@@ -1,24 +1,12 @@
-import { type Infer, v } from "convex/values";
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from "./_generated/server.js";
-import type { MutationCtx } from "./_generated/server.js";
-import { components, internal } from "./_generated/api.js";
+import { type Event as WorkOSEvent } from "@workos-inc/node";
 import { withoutSystemFields } from "convex-helpers";
-import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
-import type { FunctionHandle } from "convex/server";
-import { Workpool } from "@convex-dev/workpool";
-import { vUser } from "../validators.js";
 import { parse } from "convex-helpers/validators";
+import type { FunctionHandle } from "convex/server";
+import { type Infer, v } from "convex/values";
+import { vUser } from "../validators.js";
 import type { Doc } from "./_generated/dataModel.js";
-
-const eventWorkpool = new Workpool(components.eventWorkpool, {
-  maxParallelism: 1,
-});
+import type { MutationCtx } from "./_generated/server.js";
+import { mutation, query } from "./_generated/server.js";
 
 export const vEvent = v.object({
   id: v.string(),
@@ -140,73 +128,6 @@ export const onWebhookEvent = mutation({
     // event types can be processed inline.
     await processEventHandler(ctx, args);
     return null;
-  },
-});
-
-export const getCursor = internalQuery({
-  args: {},
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx) => {
-    const lastProcessedEvent = await ctx.db
-      .query("events")
-      .order("desc")
-      .first();
-    return lastProcessedEvent?.eventId;
-  },
-});
-
-export const updateEvents = internalAction({
-  args: {
-    apiKey: v.string(),
-    onEventHandle: v.optional(v.string()),
-    eventTypes: v.optional(v.array(v.string())),
-    logLevel: v.optional(v.literal("DEBUG")),
-  },
-  handler: async (ctx, args) => {
-    // Cancel other pending workpool jobs since this run will
-    // process all available events from the WorkOS API.
-    await eventWorkpool.cancelAll(ctx);
-    const workos = new WorkOS(args.apiKey);
-    const cursor = await ctx.runQuery(internal.lib.getCursor);
-    let nextCursor = cursor ?? undefined;
-    const eventTypes = [
-      "user.created" as const,
-      "user.updated" as const,
-      "user.deleted" as const,
-      ...((args.eventTypes as WorkOSEvent["event"][]) ?? []),
-    ];
-    // No cursor should mean we haven't handled any events - set
-    // a start time of 5 minutes ago
-    let rangeStart = nextCursor
-      ? undefined
-      : new Date(Date.now() - 1000 * 60 * 5).toISOString();
-    do {
-      const { data, listMetadata } = await workos.events.listEvents({
-        events: eventTypes,
-        after: nextCursor,
-        rangeStart,
-      });
-      for (const event of data) {
-        await ctx.runMutation(internal.lib.processEvent, {
-          event: parse(vEvent, event),
-          logLevel: args.logLevel,
-          onEventHandle: args.onEventHandle,
-        });
-      }
-      nextCursor = listMetadata.after ?? undefined;
-      rangeStart = undefined;
-    } while (nextCursor);
-  },
-});
-
-export const processEvent = internalMutation({
-  args: {
-    event: vEvent,
-    logLevel: v.optional(v.literal("DEBUG")),
-    onEventHandle: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await processEventHandler(ctx, args);
   },
 });
 

@@ -46,7 +46,6 @@ function makeEvent(
 /** Initialize a convex-test instance with sub-component registrations. */
 function initConvexTest() {
   const t = convexTest(schema, modules);
-  workpool.register(t, "eventWorkpool");
   workflow.register(t, "backfillWorkflow");
   return t;
 }
