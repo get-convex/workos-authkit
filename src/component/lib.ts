@@ -14,6 +14,7 @@ import type { FunctionHandle } from "convex/server";
 import { Workpool } from "@convex-dev/workpool";
 import { vUser } from "../validators.js";
 import { parse } from "convex-helpers/validators";
+import type { Doc } from "./_generated/dataModel.js";
 
 const eventWorkpool = new Workpool(components.eventWorkpool, {
   maxParallelism: 1,
@@ -203,7 +204,7 @@ export const getAuthUser = query({
       .query("users")
       .withIndex("id", (q) => q.eq("id", args.id))
       .unique();
-    return user ? withoutSystemFields(user) : null;
+    return publicUser(user);
   },
 });
 
@@ -217,6 +218,11 @@ export const getAuthUserByExternalId = query({
       .query("users")
       .withIndex("externalId", (q) => q.eq("externalId", args.externalId))
       .unique();
-    return user ? withoutSystemFields(user) : null;
+    return publicUser(user);
   },
 });
+
+function publicUser(user: Doc<"users"> | null): Infer<typeof vUser> | null {
+  if (!user) return null;
+  return withoutSystemFields(user);
+}
