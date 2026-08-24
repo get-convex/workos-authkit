@@ -39,6 +39,13 @@ async function processEventHandler(
   if (args.logLevel === "DEBUG") {
     console.log("processing event", args.event);
   }
+  const event = args.event as WorkOSEvent;
+  const userId =
+    "id" in args.event.data
+      ? args.event.data.id
+      : "userId" in args.event.data
+        ? args.event.data.userId
+        : undefined;
   const dbEvent = await ctx.db
     .query("events")
     .withIndex("eventId", (q) => q.eq("eventId", args.event.id))
@@ -48,6 +55,8 @@ async function processEventHandler(
     return;
   }
   await ctx.db.insert("events", {
+    // can be used in the future to delete events related to a user
+    userId,
     eventId: args.event.id,
     event: args.event.event,
     updatedAt: args.event.data.updatedAt as string | undefined,
