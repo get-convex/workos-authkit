@@ -15,4 +15,7 @@ export default defineSchema({
   users: defineTable(vUser)
     .index("id", ["id"])
     .index("externalId", ["externalId"]),
+  deletedUsers: defineTable({
+    id: v.string(),
+  }).index("id", ["id"]),
 });

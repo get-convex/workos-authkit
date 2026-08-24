@@ -8,7 +8,7 @@ import {
 } from "./_generated/server.js";
 import type { MutationCtx } from "./_generated/server.js";
 import { components, internal } from "./_generated/api.js";
-import { omit, withoutSystemFields } from "convex-helpers";
+import { withoutSystemFields } from "convex-helpers";
 import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
 import type { FunctionHandle } from "convex/server";
 import { Workpool } from "@convex-dev/workpool";
@@ -61,40 +61,44 @@ async function processEventHandler(
     event: args.event.event,
     updatedAt: args.event.data.updatedAt as string | undefined,
   });
-  const event = args.event as WorkOSEvent;
+  let eventForCallback = event.event;
   switch (event.event) {
-    case "user.created": {
-      const data = omit(event.data, ["object"]);
+    case "user.created":
+    case "user.updated": {
+      const data = parse(vUser, event.data);
       const existingUser = await ctx.db
         .query("users")
         .withIndex("id", (q) => q.eq("id", data.id))
         .unique();
-      if (existingUser) {
-        console.warn("user already exists", data.id);
-        return;
-      }
-      await ctx.db.insert("users", data);
-      break;
-    }
-    case "user.updated": {
-      const data = parse(vUser, event.data);
-      const user = await ctx.db
-        .query("users")
-        .withIndex("id", (q) => q.eq("id", data.id))
-        .unique();
-      if (!user) {
-        // The update may have been delivered before the create; the
-        // payload is the full user object, so insert it. The create
-        // no-ops on arrival via the existing-user guard above.
-        console.warn("user not found for update, inserting", data.id);
+      if (!existingUser) {
+        const deletedUser = await ctx.db
+          .query("deletedUsers")
+          .withIndex("id", (q) => q.eq("id", data.id))
+          .unique();
+        if (deletedUser) {
+          console.warn("user already deleted, skipping", event.event, data.id);
+          return;
+        }
         await ctx.db.insert("users", data);
-        break;
+        if (event.event === "user.updated") {
+          // The update may have been delivered before the create; the
+          // payload is the full user object, so insert it. The create
+          // no-ops on arrival via the existing-user guard.
+          console.warn("user not found for update, inserting", data.id);
+          eventForCallback = "user.created";
+        }
+      } else {
+        if (event.event === "user.created") {
+          console.warn("user already exists", data.id);
+          // Note: we skip notifying the user's callback here, but we
+          // should have called them with "user.created" for the update.
+          return;
+        } else if (existingUser.updatedAt >= data.updatedAt) {
+          console.warn(`user already updated for event ${event.id}, skipping`);
+          return;
+        }
+        await ctx.db.patch("users", existingUser._id, data);
       }
-      if (user.updatedAt >= data.updatedAt) {
-        console.warn(`user already updated for event ${event.id}, skipping`);
-        return;
-      }
-      await ctx.db.patch("users", user._id, data);
       break;
     }
     case "user.deleted": {
@@ -104,16 +108,19 @@ async function processEventHandler(
         .withIndex("id", (q) => q.eq("id", data.id))
         .unique();
       if (!user) {
-        console.warn("user not found", data.id);
+        console.warn("user not found, skipping deletion", data.id);
         return;
       }
       await ctx.db.delete("users", user._id);
+      await ctx.db.insert("deletedUsers", {
+        id: user.id,
+      });
       break;
     }
   }
   if (args.onEventHandle) {
     await ctx.runMutation(args.onEventHandle as FunctionHandle<"mutation">, {
-      event: args.event.event,
+      event: eventForCallback,
       data: args.event.data,
     });
   }
