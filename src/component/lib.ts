@@ -12,7 +12,7 @@ import { omit, withoutSystemFields } from "convex-helpers";
 import { WorkOS, type Event as WorkOSEvent } from "@workos-inc/node";
 import type { FunctionHandle } from "convex/server";
 import { Workpool } from "@convex-dev/workpool";
-import schema from "./schema.js";
+import { vUser } from "../validators.js";
 import { parse } from "convex-helpers/validators";
 
 const eventWorkpool = new Workpool(components.eventWorkpool, {
@@ -67,7 +67,7 @@ async function processEventHandler(
       break;
     }
     case "user.updated": {
-      const data = omit(event.data, ["object"]);
+      const data = parse(vUser, event.data);
       const user = await ctx.db
         .query("users")
         .withIndex("id", (q) => q.eq("id", data.id))
@@ -88,7 +88,7 @@ async function processEventHandler(
       break;
     }
     case "user.deleted": {
-      const data = omit(event.data, ["object"]);
+      const data = parse(vUser, event.data);
       const user = await ctx.db
         .query("users")
         .withIndex("id", (q) => q.eq("id", data.id))
@@ -197,7 +197,7 @@ export const getAuthUser = query({
   args: {
     id: v.string(),
   },
-  returns: v.union(schema.tables.users.validator, v.null()),
+  returns: v.union(vUser, v.null()),
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -211,7 +211,7 @@ export const getAuthUserByExternalId = query({
   args: {
     externalId: v.string(),
   },
-  returns: v.union(schema.tables.users.validator, v.null()),
+  returns: v.union(vUser, v.null()),
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
