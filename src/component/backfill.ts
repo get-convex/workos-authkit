@@ -8,8 +8,7 @@ import {
 import { components, internal } from "./_generated/api.js";
 import { WorkOS } from "@workos-inc/node";
 import type { FunctionHandle } from "convex/server";
-import { WorkflowManager } from "@convex-dev/workflow";
-import { vResultValidator } from "@convex-dev/workpool";
+import { vResultValidator, WorkflowManager } from "@convex-dev/workflow";
 import { vUser } from "../validators.js";
 
 const workflow = new WorkflowManager(components.backfillWorkflow, {

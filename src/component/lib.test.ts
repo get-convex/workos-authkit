@@ -3,7 +3,6 @@ import { convexTest } from "convex-test";
 import { describe, test, expect } from "vitest";
 import { modules } from "./setup.test.js";
 import schema from "./schema.js";
-import workpool from "@convex-dev/workpool/test";
 import workflow from "@convex-dev/workflow/test";
 import { api } from "./_generated/api.js";
 
@@ -184,5 +183,62 @@ describe("onWebhookEvent", () => {
     });
     expect(dbUser?.name).toBe("Alice Jones");
     expect(dbUser?.updatedAt).toBe("2024-01-02T00:00:00.000Z");
+  });
+
+  test("user events record the user id", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      apiKey: "sk_test_123",
+      event: makeEvent("user.created", user),
+    });
+
+    const dbEvent = await t.run(async (ctx) => {
+      return ctx.db.query("events").unique();
+    });
+    expect(dbEvent?.userId).toBe(user.id);
+  });
+
+  test("events referencing a user prefer userId over the object id", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      apiKey: "sk_test_123",
+      event: {
+        id: "event_session_created",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        event: "session.created",
+        data: {
+          object: "session",
+          id: "session_01XYZ",
+          userId: "user_01ABC",
+        },
+      },
+    });
+
+    const dbEvent = await t.run(async (ctx) => {
+      return ctx.db.query("events").unique();
+    });
+    expect(dbEvent?.userId).toBe("user_01ABC");
+  });
+
+  test("events without a usable id record no userId", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      apiKey: "sk_test_123",
+      event: {
+        id: "event_connection_activated",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        event: "connection.activated",
+        data: { object: "connection", id: null },
+      },
+    });
+
+    const dbEvent = await t.run(async (ctx) => {
+      return ctx.db.query("events").unique();
+    });
+    expect(dbEvent?.userId).toBeUndefined();
   });
 });

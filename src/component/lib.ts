@@ -28,12 +28,11 @@ async function processEventHandler(
     console.log("processing event", args.event);
   }
   const event = args.event as WorkOSEvent;
-  const userId =
-    "id" in args.event.data
-      ? args.event.data.id
-      : "userId" in args.event.data
-        ? args.event.data.userId
-        : undefined;
+  // Best-effort: user-scoped events either reference the user as `userId` or
+  // are the user object itself (`id`). Events for other object types can land
+  // here too, but this is only used to find events related to a given user.
+  const eventUserId = args.event.data.userId ?? args.event.data.id;
+  const userId = typeof eventUserId === "string" ? eventUserId : undefined;
   const dbEvent = await ctx.db
     .query("events")
     .withIndex("eventId", (q) => q.eq("eventId", args.event.id))

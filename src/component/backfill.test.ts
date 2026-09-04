@@ -3,7 +3,6 @@ import { convexTest } from "convex-test";
 import { vi, describe, test, expect, beforeEach, afterEach } from "vitest";
 import { modules } from "./setup.test.js";
 import schema from "./schema.js";
-import workpool from "@convex-dev/workpool/test";
 import workflow from "@convex-dev/workflow/test";
 import { api, internal } from "./_generated/api.js";
 
