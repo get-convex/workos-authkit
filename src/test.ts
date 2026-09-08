@@ -1,6 +1,5 @@
 import type { TestConvex } from "convex-test";
 import type { GenericSchema, SchemaDefinition } from "convex/server";
-import workpool from "@convex-dev/workpool/test";
 import workflow from "@convex-dev/workflow/test";
 import schema from "./component/schema.js";
 const modules = import.meta.glob("./component/**/*.ts");
@@ -15,7 +14,6 @@ function register(
   name: string = "workOSAuthKit"
 ) {
   t.registerComponent(name, schema, modules);
-  workpool.register(t, `${name}/eventWorkpool`);
   workflow.register(t, `${name}/backfillWorkflow`);
 }
 export default { register, schema, modules };
