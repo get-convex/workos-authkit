@@ -8,15 +8,12 @@ import {
 import { components, internal } from "./_generated/api.js";
 import { WorkOS } from "@workos-inc/node";
 import type { FunctionHandle } from "convex/server";
-import { WorkflowManager } from "@convex-dev/workflow";
-import { vResultValidator } from "@convex-dev/workpool";
-import schema from "./schema.js";
+import { vResultValidator, WorkflowManager } from "@convex-dev/workflow";
+import { vUser } from "../validators.js";
 
 const workflow = new WorkflowManager(components.backfillWorkflow, {
   workpoolOptions: { maxParallelism: 1 },
 });
-
-const vUser = schema.tables.users.validator;
 
 export const getBackfillApiKey = internalQuery({
   args: {},
@@ -37,10 +34,7 @@ export const processUsersPage = internalAction({
   returns: v.object({
     nextCursor: v.optional(v.string()),
   }),
-  handler: async (
-    ctx,
-    args
-  ): Promise<{ nextCursor: string | undefined }> => {
+  handler: async (ctx, args): Promise<{ nextCursor: string | undefined }> => {
     const apiKey: string | null = await ctx.runQuery(
       internal.backfill.getBackfillApiKey,
       {}
@@ -124,14 +118,11 @@ export const backfillBatch = workflow.define({
     let pagesProcessed = 0;
 
     while (pagesProcessed < MAX_PAGES_PER_BATCH) {
-      const result = await step.runAction(
-        internal.backfill.processUsersPage,
-        {
-          after: cursor,
-          onEventHandle: args.onEventHandle,
-          logLevel: args.logLevel,
-        }
-      );
+      const result = await step.runAction(internal.backfill.processUsersPage, {
+        after: cursor,
+        onEventHandle: args.onEventHandle,
+        logLevel: args.logLevel,
+      });
 
       cursor = result.nextCursor;
       pagesProcessed++;
