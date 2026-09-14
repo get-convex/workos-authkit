@@ -257,12 +257,10 @@ export class AuthKit<DataModel extends GenericDataModel> {
           console.log("received event", event);
         }
         await ctx.runMutation(this.component.lib.onWebhookEvent, {
-          apiKey: this.config.apiKey,
           event: parse(vEvent, event),
           onEventHandle: this.config.authFunctions?.authKitEvent
             ? await createFunctionHandle(this.config.authFunctions.authKitEvent)
             : undefined,
-          eventTypes: this.config.additionalEventTypes,
           logLevel: this.config.logLevel,
         });
         return new Response("OK", { status: 200 });

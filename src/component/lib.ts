@@ -115,10 +115,8 @@ async function processEventHandler(
 
 export const onWebhookEvent = mutation({
   args: {
-    apiKey: v.string(),
     event: vEvent,
     onEventHandle: v.optional(v.string()),
-    eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
   },
   returns: v.null(),

@@ -55,7 +55,6 @@ describe("onWebhookEvent", () => {
     const user = makeUser();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", user),
     });
 
@@ -80,7 +79,6 @@ describe("onWebhookEvent", () => {
       updatedAt: "2024-01-02T00:00:00.000Z",
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", updated),
     });
 
@@ -99,7 +97,6 @@ describe("onWebhookEvent", () => {
     });
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.deleted", user),
     });
 
@@ -115,11 +112,9 @@ describe("onWebhookEvent", () => {
     const event = makeEvent("user.created", user);
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event,
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event,
     });
 
@@ -143,11 +138,9 @@ describe("onWebhookEvent", () => {
     });
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", updated),
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", created),
     });
 
@@ -174,7 +167,6 @@ describe("onWebhookEvent", () => {
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", stale),
     });
 
@@ -190,7 +182,6 @@ describe("onWebhookEvent", () => {
     const user = makeUser();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", user),
     });
 
@@ -204,7 +195,6 @@ describe("onWebhookEvent", () => {
     const t = initConvexTest();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: {
         id: "event_session_created",
         createdAt: "2024-01-01T00:00:00.000Z",
@@ -227,7 +217,6 @@ describe("onWebhookEvent", () => {
     const t = initConvexTest();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: {
         id: "event_connection_activated",
         createdAt: "2024-01-01T00:00:00.000Z",

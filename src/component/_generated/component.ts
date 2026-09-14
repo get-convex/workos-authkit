@@ -79,7 +79,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
-          apiKey: string;
           event: {
             context?: Record<string, any>;
             createdAt: string;
@@ -87,7 +86,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             event: string;
             id: string;
           };
-          eventTypes?: Array<string>;
           logLevel?: "DEBUG";
           onEventHandle?: string;
         },
