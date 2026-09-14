@@ -82,17 +82,16 @@ async function processEventHandler(
         }
         await ctx.db.insert("users", data);
         if (event.event === "user.updated") {
-          // The update may have been delivered before the create; the
-          // payload is the full user object, so insert it. The create
-          // no-ops on arrival via the existing-user guard.
+          // WorkOS can deliver the update before the create. The update
+          // payload holds the whole user, so it is safe to insert.
           console.warn("user not found for update, inserting", data.id);
           eventForCallback = "user.created";
         }
       } else {
         if (event.event === "user.created") {
           console.warn("user already exists", data.id);
-          // Note: we skip notifying the user's callback here, but we
-          // should have called them with "user.created" for the update.
+          // The callback already fired as user.created when this user was
+          // first inserted, so skip it here.
           return;
         } else if (existingUser.updatedAt >= data.updatedAt) {
           console.warn(`user already updated for event ${event.id}, skipping`);
@@ -177,7 +176,10 @@ export const getAuthUserByExternalId = query({
   },
 });
 
+/** Drops the Convex system fields so the user matches the public vUser shape. */
 function publicUser(user: Doc<"users"> | null): Infer<typeof vUser> | null {
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
   return withoutSystemFields(user);
 }
