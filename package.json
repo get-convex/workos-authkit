@@ -97,6 +97,7 @@
   "dependencies": {
     "@convex-dev/workflow": "^0.4.0",
     "@convex-dev/workos": "^0.0.3",
+    "@convex-dev/workpool": "^0.4.4",
     "convex-helpers": "^0.1.111",
     "type-fest": "^5.1.0"
   }
