@@ -7,7 +7,6 @@ const authFunctions: AuthFunctions = internal.auth;
 
 export const authKit = new AuthKit<DataModel>(components.workOSAuthKit, {
   authFunctions,
-  additionalEventTypes: ["session.created"],
 });
 
 export const { authKitAction } = authKit.actions({

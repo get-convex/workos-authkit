@@ -33,6 +33,11 @@ type Options = {
   apiHostname?: string;
   webhookSecret?: string;
   webhookPath?: string;
+  /**
+   * @deprecated Unused. Events arrive by webhook, so select the event
+   * types in the WorkOS webhook configuration and add a handler for each
+   * in `events()`.
+   */
   additionalEventTypes?: WorkOSEvent["event"][];
   actionSecret?: string;
   logLevel?: "DEBUG";
@@ -71,6 +76,11 @@ export class AuthKit<DataModel extends GenericDataModel> {
     public component: ComponentApi,
     public options?: Options
   ) {
+    if (options?.additionalEventTypes?.length) {
+      console.warn(
+        "additionalEventTypes is deprecated and ignored. Select event types in your WorkOS webhook configuration and add a handler for each in events()."
+      );
+    }
     const missingEnvVars: string[] = [];
     const clientId = requireEnvVar(
       options?.clientId ?? process.env.WORKOS_CLIENT_ID,
