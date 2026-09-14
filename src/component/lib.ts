@@ -103,22 +103,23 @@ async function processEventHandler(
       break;
     }
     case "user.deleted": {
-      const data = parse(vUser, event.data);
+      // Only the id is needed, so a trimmed payload should not fail the webhook.
+      const { id } = parse(v.object({ id: v.string() }), event.data);
       // Record the deletion even if the user was never inserted locally, so a
       // late user.created or user.updated for this user is skipped.
       const deletedUser = await ctx.db
         .query("deletedUsers")
-        .withIndex("id", (q) => q.eq("id", data.id))
+        .withIndex("id", (q) => q.eq("id", id))
         .unique();
       if (!deletedUser) {
-        await ctx.db.insert("deletedUsers", { id: data.id });
+        await ctx.db.insert("deletedUsers", { id });
       }
       const user = await ctx.db
         .query("users")
-        .withIndex("id", (q) => q.eq("id", data.id))
+        .withIndex("id", (q) => q.eq("id", id))
         .unique();
       if (!user) {
-        console.warn("user not found, skipping deletion", data.id);
+        console.warn("user not found, skipping deletion", id);
         return;
       }
       await ctx.db.delete("users", user._id);
