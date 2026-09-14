@@ -79,7 +79,21 @@ export const upsertUsersPage = internalMutation({
       )
     );
 
-    const newUsers = args.users.filter((_, i) => !existingUsers[i]);
+    // A user.deleted webhook can land between the page fetch and this
+    // mutation, so skip anyone recorded in deletedUsers or the backfill
+    // would insert them again.
+    const deletedUsers = await Promise.all(
+      args.users.map((user) =>
+        ctx.db
+          .query("deletedUsers")
+          .withIndex("id", (q) => q.eq("id", user.id))
+          .unique()
+      )
+    );
+
+    const newUsers = args.users.filter(
+      (_, i) => !existingUsers[i] && !deletedUsers[i]
+    );
 
     if (args.logLevel === "DEBUG") {
       console.log(
