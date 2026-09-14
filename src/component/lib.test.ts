@@ -42,6 +42,16 @@ function makeEvent(
   };
 }
 
+/** Create a webhook event payload for any event type. */
+function makeRawEvent(event: string, data: Record<string, unknown>) {
+  return {
+    id: `event_${event}`,
+    createdAt: "2024-01-01T00:00:00.000Z",
+    event,
+    data,
+  };
+}
+
 /** Initialize a convex-test instance with sub-component registrations. */
 function initConvexTest() {
   const t = convexTest(schema, modules);
@@ -229,5 +239,44 @@ describe("onWebhookEvent", () => {
       return ctx.db.query("events").unique();
     });
     expect(dbEvent?.userId).toBeUndefined();
+  });
+
+  test("organization.created leaves userId unset", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeRawEvent("organization.created", {
+        object: "organization",
+        id: "org_01ABC",
+        name: "Acme",
+      }),
+    });
+
+    const dbEvents = await t.run(async (ctx) => {
+      return ctx.db.query("events").collect();
+    });
+    expect(dbEvents).toHaveLength(1);
+    expect(dbEvents[0].userId).toBeUndefined();
+  });
+
+  test("authentication events with a null userId are recorded", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeRawEvent("authentication.password_failed", {
+        userId: null,
+        email: "alice@example.com",
+        status: "failed",
+        type: "password",
+        ipAddress: null,
+        userAgent: null,
+      }),
+    });
+
+    const dbEvents = await t.run(async (ctx) => {
+      return ctx.db.query("events").collect();
+    });
+    expect(dbEvents).toHaveLength(1);
+    expect(dbEvents[0].userId).toBeUndefined();
   });
 });

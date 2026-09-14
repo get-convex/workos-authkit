@@ -16,6 +16,25 @@ export const vEvent = v.object({
   context: v.optional(v.record(v.string(), v.any())),
 });
 
+/**
+ * Returns the WorkOS user id an event is about, or undefined when the
+ * event is about something other than a user.
+ */
+function eventUserId(event: Infer<typeof vEvent>): string | undefined {
+  const data = event.data as { id?: unknown; userId?: unknown };
+  if (typeof data.userId === "string") {
+    return data.userId;
+  }
+  const isUserEvent =
+    event.event === "user.created" ||
+    event.event === "user.updated" ||
+    event.event === "user.deleted";
+  if (isUserEvent && typeof data.id === "string") {
+    return data.id;
+  }
+  return undefined;
+}
+
 async function processEventHandler(
   ctx: MutationCtx,
   args: {
@@ -28,11 +47,7 @@ async function processEventHandler(
     console.log("processing event", args.event);
   }
   const event = args.event as WorkOSEvent;
-  // Best-effort: user-scoped events either reference the user as `userId` or
-  // are the user object itself (`id`). Events for other object types can land
-  // here too, but this is only used to find events related to a given user.
-  const eventUserId = args.event.data.userId ?? args.event.data.id;
-  const userId = typeof eventUserId === "string" ? eventUserId : undefined;
+  const userId = eventUserId(args.event);
   const dbEvent = await ctx.db
     .query("events")
     .withIndex("eventId", (q) => q.eq("eventId", args.event.id))
@@ -42,7 +57,6 @@ async function processEventHandler(
     return;
   }
   await ctx.db.insert("events", {
-    // can be used in the future to delete events related to a user
     userId,
     eventId: args.event.id,
     event: args.event.event,
