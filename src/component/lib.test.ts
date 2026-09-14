@@ -241,6 +241,72 @@ describe("onWebhookEvent", () => {
     expect(dbEvent?.userId).toBeUndefined();
   });
 
+  test("user.deleted records a tombstone", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", user);
+    });
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("user.created after user.deleted is skipped", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.created", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("user.updated after user.deleted is skipped", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.updated", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
   test("organization.created leaves userId unset", async () => {
     const t = initConvexTest();
 

@@ -104,6 +104,15 @@ async function processEventHandler(
     }
     case "user.deleted": {
       const data = parse(vUser, event.data);
+      // Record the deletion even if the user was never inserted locally, so a
+      // late user.created or user.updated for this user is skipped.
+      const deletedUser = await ctx.db
+        .query("deletedUsers")
+        .withIndex("id", (q) => q.eq("id", data.id))
+        .unique();
+      if (!deletedUser) {
+        await ctx.db.insert("deletedUsers", { id: data.id });
+      }
       const user = await ctx.db
         .query("users")
         .withIndex("id", (q) => q.eq("id", data.id))
@@ -113,9 +122,6 @@ async function processEventHandler(
         return;
       }
       await ctx.db.delete("users", user._id);
-      await ctx.db.insert("deletedUsers", {
-        id: user.id,
-      });
       break;
     }
   }
