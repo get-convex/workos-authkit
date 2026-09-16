@@ -63,6 +63,7 @@ async function processEventHandler(
     updatedAt: args.event.data.updatedAt as string | undefined,
   });
   let eventForCallback = event.event;
+  let dataForCallback = args.event.data;
   switch (event.event) {
     case "user.created":
     case "user.updated": {
@@ -122,13 +123,20 @@ async function processEventHandler(
         return;
       }
       await ctx.db.delete("users", user._id);
+      // The callback data is typed as a whole user, so fill anything the
+      // payload left out from the stored user.
+      dataForCallback = {
+        ...withoutSystemFields(user),
+        object: "user",
+        ...args.event.data,
+      };
       break;
     }
   }
   if (args.onEventHandle) {
     await ctx.runMutation(args.onEventHandle as FunctionHandle<"mutation">, {
       event: eventForCallback,
-      data: args.event.data,
+      data: dataForCallback,
     });
   }
 }
