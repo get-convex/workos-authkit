@@ -59,6 +59,24 @@ describe("AuthKit constructor", () => {
       expect.objectContaining({ clientId: "client_test" })
     );
   });
+
+  test("warns when additionalEventTypes is set", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    new AuthKit(fakeComponent, { additionalEventTypes: ["session.created"] });
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
+  });
+
+  test("does not warn when additionalEventTypes is unset", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    new AuthKit(fakeComponent);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
 });
 
 describe("AuthKit.getAuthConfigProviders", () => {

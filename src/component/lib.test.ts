@@ -42,6 +42,16 @@ function makeEvent(
   };
 }
 
+/** Create a webhook event payload for any event type. */
+function makeRawEvent(event: string, data: Record<string, unknown>) {
+  return {
+    id: `event_${event}`,
+    createdAt: "2024-01-01T00:00:00.000Z",
+    event,
+    data,
+  };
+}
+
 /** Initialize a convex-test instance with sub-component registrations. */
 function initConvexTest() {
   const t = convexTest(schema, modules);
@@ -55,7 +65,6 @@ describe("onWebhookEvent", () => {
     const user = makeUser();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", user),
     });
 
@@ -80,7 +89,6 @@ describe("onWebhookEvent", () => {
       updatedAt: "2024-01-02T00:00:00.000Z",
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", updated),
     });
 
@@ -99,7 +107,6 @@ describe("onWebhookEvent", () => {
     });
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.deleted", user),
     });
 
@@ -115,11 +122,9 @@ describe("onWebhookEvent", () => {
     const event = makeEvent("user.created", user);
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event,
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event,
     });
 
@@ -143,11 +148,9 @@ describe("onWebhookEvent", () => {
     });
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", updated),
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", created),
     });
 
@@ -174,7 +177,6 @@ describe("onWebhookEvent", () => {
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.updated", stale),
     });
 
@@ -190,7 +192,6 @@ describe("onWebhookEvent", () => {
     const user = makeUser();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: makeEvent("user.created", user),
     });
 
@@ -204,7 +205,6 @@ describe("onWebhookEvent", () => {
     const t = initConvexTest();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: {
         id: "event_session_created",
         createdAt: "2024-01-01T00:00:00.000Z",
@@ -227,7 +227,6 @@ describe("onWebhookEvent", () => {
     const t = initConvexTest();
 
     await t.mutation(api.lib.onWebhookEvent, {
-      apiKey: "sk_test_123",
       event: {
         id: "event_connection_activated",
         createdAt: "2024-01-01T00:00:00.000Z",
@@ -240,5 +239,132 @@ describe("onWebhookEvent", () => {
       return ctx.db.query("events").unique();
     });
     expect(dbEvent?.userId).toBeUndefined();
+  });
+
+  test("user.deleted records a tombstone", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", user);
+    });
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("user.deleted works with only an id in the payload", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", user);
+    });
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeRawEvent("user.deleted", { object: "user", id: user.id }),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("user.created after user.deleted is skipped", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.created", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("user.updated after user.deleted is skipped", async () => {
+    const t = initConvexTest();
+    const user = makeUser();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+    });
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeEvent("user.updated", user),
+    });
+
+    const { dbUsers, dbDeletedUsers } = await t.run(async (ctx) => {
+      return {
+        dbUsers: await ctx.db.query("users").collect(),
+        dbDeletedUsers: await ctx.db.query("deletedUsers").collect(),
+      };
+    });
+    expect(dbUsers).toHaveLength(0);
+    expect(dbDeletedUsers).toHaveLength(1);
+    expect(dbDeletedUsers[0].id).toBe(user.id);
+  });
+
+  test("organization.created leaves userId unset", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeRawEvent("organization.created", {
+        object: "organization",
+        id: "org_01ABC",
+        name: "Acme",
+      }),
+    });
+
+    const dbEvents = await t.run(async (ctx) => {
+      return ctx.db.query("events").collect();
+    });
+    expect(dbEvents).toHaveLength(1);
+    expect(dbEvents[0].userId).toBeUndefined();
+  });
+
+  test("authentication events with a null userId are recorded", async () => {
+    const t = initConvexTest();
+
+    await t.mutation(api.lib.onWebhookEvent, {
+      event: makeRawEvent("authentication.password_failed", {
+        userId: null,
+        email: "alice@example.com",
+        status: "failed",
+        type: "password",
+        ipAddress: null,
+        userAgent: null,
+      }),
+    });
+
+    const dbEvents = await t.run(async (ctx) => {
+      return ctx.db.query("events").collect();
+    });
+    expect(dbEvents).toHaveLength(1);
+    expect(dbEvents[0].userId).toBeUndefined();
   });
 });

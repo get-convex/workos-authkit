@@ -150,6 +150,22 @@ describe("backfill", () => {
     expect(dbUsers).toHaveLength(1);
   });
 
+  test("upsertUsersPage skips users with a tombstone", async () => {
+    const t = initConvexTest();
+    const user = makeUser({ id: "user_deleted", email: "gone@example.com" });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("deletedUsers", { id: user.id });
+    });
+
+    await t.mutation(internal.backfill.upsertUsersPage, { users: [user] });
+
+    const dbUsers = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(dbUsers).toHaveLength(0);
+  });
+
   test("full workflow processes single page", async () => {
     const users = [
       makeUser({ id: "user_w1", email: "w1@example.com" }),

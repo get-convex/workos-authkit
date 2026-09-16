@@ -16,6 +16,25 @@ export const vEvent = v.object({
   context: v.optional(v.record(v.string(), v.any())),
 });
 
+/**
+ * Returns the WorkOS user id an event is about, or undefined when the
+ * event is about something other than a user.
+ */
+function eventUserId(event: Infer<typeof vEvent>): string | undefined {
+  const data = event.data as { id?: unknown; userId?: unknown };
+  if (typeof data.userId === "string") {
+    return data.userId;
+  }
+  const isUserEvent =
+    event.event === "user.created" ||
+    event.event === "user.updated" ||
+    event.event === "user.deleted";
+  if (isUserEvent && typeof data.id === "string") {
+    return data.id;
+  }
+  return undefined;
+}
+
 async function processEventHandler(
   ctx: MutationCtx,
   args: {
@@ -28,11 +47,7 @@ async function processEventHandler(
     console.log("processing event", args.event);
   }
   const event = args.event as WorkOSEvent;
-  // Best-effort: user-scoped events either reference the user as `userId` or
-  // are the user object itself (`id`). Events for other object types can land
-  // here too, but this is only used to find events related to a given user.
-  const eventUserId = args.event.data.userId ?? args.event.data.id;
-  const userId = typeof eventUserId === "string" ? eventUserId : undefined;
+  const userId = eventUserId(args.event);
   const dbEvent = await ctx.db
     .query("events")
     .withIndex("eventId", (q) => q.eq("eventId", args.event.id))
@@ -42,13 +57,13 @@ async function processEventHandler(
     return;
   }
   await ctx.db.insert("events", {
-    // can be used in the future to delete events related to a user
     userId,
     eventId: args.event.id,
     event: args.event.event,
     updatedAt: args.event.data.updatedAt as string | undefined,
   });
   let eventForCallback = event.event;
+  let dataForCallback = args.event.data;
   switch (event.event) {
     case "user.created":
     case "user.updated": {
@@ -68,17 +83,16 @@ async function processEventHandler(
         }
         await ctx.db.insert("users", data);
         if (event.event === "user.updated") {
-          // The update may have been delivered before the create; the
-          // payload is the full user object, so insert it. The create
-          // no-ops on arrival via the existing-user guard.
+          // WorkOS can deliver the update before the create. The update
+          // payload holds the whole user, so it is safe to insert.
           console.warn("user not found for update, inserting", data.id);
           eventForCallback = "user.created";
         }
       } else {
         if (event.event === "user.created") {
           console.warn("user already exists", data.id);
-          // Note: we skip notifying the user's callback here, but we
-          // should have called them with "user.created" for the update.
+          // The callback already fired as user.created when this user was
+          // first inserted, so skip it here.
           return;
         } else if (existingUser.updatedAt >= data.updatedAt) {
           console.warn(`user already updated for event ${event.id}, skipping`);
@@ -89,36 +103,48 @@ async function processEventHandler(
       break;
     }
     case "user.deleted": {
-      const data = parse(vUser, event.data);
+      // Only the id is needed, so a trimmed payload should not fail the webhook.
+      const { id } = parse(v.object({ id: v.string() }), event.data);
+      // Record the deletion even if the user was never inserted locally, so a
+      // late user.created or user.updated for this user is skipped.
+      const deletedUser = await ctx.db
+        .query("deletedUsers")
+        .withIndex("id", (q) => q.eq("id", id))
+        .unique();
+      if (!deletedUser) {
+        await ctx.db.insert("deletedUsers", { id });
+      }
       const user = await ctx.db
         .query("users")
-        .withIndex("id", (q) => q.eq("id", data.id))
+        .withIndex("id", (q) => q.eq("id", id))
         .unique();
       if (!user) {
-        console.warn("user not found, skipping deletion", data.id);
+        console.warn("user not found, skipping deletion", id);
         return;
       }
       await ctx.db.delete("users", user._id);
-      await ctx.db.insert("deletedUsers", {
-        id: user.id,
-      });
+      // The callback data is typed as a whole user, so fill anything the
+      // payload left out from the stored user.
+      dataForCallback = {
+        ...withoutSystemFields(user),
+        object: "user",
+        ...args.event.data,
+      };
       break;
     }
   }
   if (args.onEventHandle) {
     await ctx.runMutation(args.onEventHandle as FunctionHandle<"mutation">, {
       event: eventForCallback,
-      data: args.event.data,
+      data: dataForCallback,
     });
   }
 }
 
 export const onWebhookEvent = mutation({
   args: {
-    apiKey: v.string(),
     event: vEvent,
     onEventHandle: v.optional(v.string()),
-    eventTypes: v.optional(v.array(v.string())),
     logLevel: v.optional(v.literal("DEBUG")),
   },
   returns: v.null(),
@@ -158,7 +184,10 @@ export const getAuthUserByExternalId = query({
   },
 });
 
+/** Drops the Convex system fields so the user matches the public vUser shape. */
 function publicUser(user: Doc<"users"> | null): Infer<typeof vUser> | null {
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
   return withoutSystemFields(user);
 }

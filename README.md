@@ -156,10 +156,10 @@ export const { authKitEvent } = authKit.events({
 
 ### Additional event types
 
-The component can handle any WorkOS event type. WorkOS docs provides a [complete
-list of events](https://workos.com/docs/events). To handle additional event types,
-they must be selected in your [webhook configuration](#configure-webhooks) and added to your AuthKit
-component configuration via the `additionalEventTypes` option.
+The component can handle any WorkOS event type. WorkOS docs provide a [complete
+list of events](https://workos.com/docs/events). To handle an additional event
+type, select it in your [webhook configuration](#configure-webhooks) and add a
+handler for it.
 
 ```ts
 // convex/auth.ts
@@ -171,7 +171,6 @@ const authFunctions: AuthFunctions = internal.auth;
 
 const authKit = new AuthKit<DataModel>(components.workOSAuthKit, {
   authFunctions,
-  additionalEventTypes: ["session.created", "session.revoked"],
 });
 
 export const { authKitEvent } = authKit.events({
