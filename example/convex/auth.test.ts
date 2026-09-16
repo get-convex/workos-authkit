@@ -80,6 +80,61 @@ describe("authKitEvent", () => {
     expect(appUsers[0].authId).toBe(user.id);
   });
 
+  test("user.deleted fires the callback and removes the app user", async () => {
+    const t = initConvexTest();
+    const onEventHandle = await t.run(async () =>
+      createFunctionHandle(internal.auth.authKitEvent)
+    );
+    const user = makeUser();
+
+    await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
+      event: makeEvent("user.created", user),
+      onEventHandle,
+    });
+
+    const afterCreate = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(afterCreate).toHaveLength(1);
+
+    await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
+      event: makeEvent("user.deleted", user),
+      onEventHandle,
+    });
+
+    const afterDelete = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(afterDelete).toHaveLength(0);
+  });
+
+  test("user.deleted with only an id still fires the callback", async () => {
+    const t = initConvexTest();
+    const onEventHandle = await t.run(async () =>
+      createFunctionHandle(internal.auth.authKitEvent)
+    );
+    const user = makeUser();
+
+    await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
+      event: makeEvent("user.created", user),
+      onEventHandle,
+    });
+    await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
+      event: {
+        id: "event_user.deleted",
+        createdAt: user.updatedAt,
+        event: "user.deleted",
+        data: { object: "user", id: user.id },
+      },
+      onEventHandle,
+    });
+
+    const appUsers = await t.run(async (ctx) => {
+      return ctx.db.query("users").collect();
+    });
+    expect(appUsers).toHaveLength(0);
+  });
+
   test("events for a deleted user do not reach the callback", async () => {
     const t = initConvexTest();
     const onEventHandle = await t.run(async () =>
