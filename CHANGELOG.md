@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.10
+
+- Fix deleted user handling and drop the unused `additionalEventTypes` option (#77)
+- Drop the Event API code and skip events for deleted users (#74)
+
 ## 0.2.9
 
 - Moves from Event API to trusting WebHooks directly for update/delete events.
